@@ -1,0 +1,21 @@
+name: "FEAT"
+description: "새로운 기능 추가"
+labels: ["feature"]
+body:
+  - type: textarea
+    attributes:
+      label: "📄 설명"
+      description: "새로운 기능에 대한 설명을 작성해 주세요."
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "✅ 작업할 내용"
+      description: "- [ ] 할 일을 체크박스로 나열해 주세요."
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "🙋🏻 참고 자료"
+      description: "관련된 링크나 문서를 첨부해 주세요 (선택 사항)"
+
