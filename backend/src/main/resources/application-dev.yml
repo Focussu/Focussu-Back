@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  # (1) 외부 비밀 설정 파일(application-secret.yml)을 불러오기
+  config:
+    import: optional:file:application-secret.yml
+
+  application:
+    name: focussu-backend
+
+  datasource:
+    url: jdbc:mysql://mysql:3306/focussu-db?useSSL=false&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: backend-group
+      auto-offset-reset: earliest
