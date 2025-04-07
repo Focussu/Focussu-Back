@@ -2,7 +2,6 @@ server:
   port: 8080
 
 spring:
-  # (1) 외부 비밀 설정 파일(application-secret.yml)을 불러오기
   config:
     import: optional:file:application-secret.yml
 
@@ -10,8 +9,11 @@ spring:
     name: focussu-backend
 
   datasource:
-    url: jdbc:mysql://mysql:3306/focussu-db?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://focussu-mysql:3306/focussu-db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+
 
   jpa:
     hibernate:
@@ -22,7 +24,17 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: focussu-kafka:9092
     consumer:
-      group-id: backend-group
+      group-id: test-group
       auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      missing-topics-fatal: false  # 테스트 시 토픽 없으면 무시
+
+  data:
+    redis:
+      port: 6379
+      host: redis
