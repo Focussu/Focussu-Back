@@ -30,6 +30,9 @@ public class Member extends BaseEntity {
     @Column(name = "member_password", nullable = false)
     private String password;
 
+    @Column(name = "member_profile_image_url")
+    private String profileImageUrl;
+
     @Builder.Default
     @Column(name = "member_total_study_time")
     private Long totalStudyTime = 0L;
