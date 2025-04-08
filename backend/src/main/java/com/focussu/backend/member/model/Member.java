@@ -1,8 +1,11 @@
 package com.focussu.backend.member.model;
 
 import com.focussu.backend.common.BaseEntity;
+import com.focussu.backend.studyparticipation.model.StudyParticipation;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -36,4 +39,7 @@ public class Member extends BaseEntity {
     @Builder.Default
     @Column(name = "member_total_study_time")
     private Long totalStudyTime = 0L;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudyParticipation> studyParticipations;
 }

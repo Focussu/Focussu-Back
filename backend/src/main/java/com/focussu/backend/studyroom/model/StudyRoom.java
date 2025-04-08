@@ -1,11 +1,11 @@
 package com.focussu.backend.studyroom.model;
 
 import com.focussu.backend.common.BaseEntity;
-import com.focussu.backend.member.model.Member;
+import com.focussu.backend.studyparticipation.model.StudyParticipation;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Set;
+import java.util.List;
 
 @Entity
 @Getter
@@ -35,4 +35,7 @@ public class StudyRoom extends BaseEntity {
 
     @Column(name = "studyroom_is_active")
     private Boolean isActive;
+
+    @OneToMany(mappedBy = "studyRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudyParticipation> studyParticipations;
 }
