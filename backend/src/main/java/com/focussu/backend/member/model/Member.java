@@ -8,35 +8,29 @@ import lombok.*;
 @Getter
 @Setter
 @Builder
+@Table(name = "member")
 @NoArgsConstructor
 @AllArgsConstructor
 public class Member extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "member_id")
     private Long id;
 
     // 이름
-    @Column(nullable = false)
+    @Column(name = "member_name", nullable = false)
     private String name;
 
     // 이메일 (아이디 역할)
-    @Column(nullable = false, unique = true)
+    @Column(name = "member_email", nullable = false, unique = true)
     private String email;
 
     // 비밀번호
-    @Column(nullable = false)
+    @Column(name = "member_password", nullable = false)
     private String password;
 
     @Builder.Default
-    @Column(name = "total_concentration_time")
-    private Long totalConcentrationTime = 0L;
-
-    @Builder.Default
-    @Column(name = "weekly_concentration_time")
-    private Long weeklyConcentrationTime = 0L;
-
-    @Builder.Default
-    @Column(name = "daily_concentration_time")
-    private Long dailyConcentrationTime = 0L;
+    @Column(name = "member_total_study_time")
+    private Long totalStudyTime = 0L;
 }
