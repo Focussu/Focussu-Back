@@ -1,4 +1,4 @@
-package com.focussu.backend.studyroomparticipant;
+package com.focussu.backend.studyparticipation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.focussu.backend.studyroomparticipant.service.StudyRoomParticipantQueryService;
+import com.focussu.backend.studyparticipation.service.StudyParticipationQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,7 +17,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
 
 @ExtendWith(MockitoExtension.class)
-public class StudyRoomParticipantKafkaIntegrationTest {
+public class StudyParticipationKafkaIntegrationTest {
 
     @Mock
     private RedisTemplate<String, String> redisTemplate;
@@ -25,13 +25,13 @@ public class StudyRoomParticipantKafkaIntegrationTest {
     @Mock
     private SetOperations<String, String> setOperations;
 
-    private StudyRoomParticipantQueryService queryService;
+    private StudyParticipationQueryService queryService;
 
     @BeforeEach
     public void setup() {
         // redisTemplate.opsForSet() 호출 시 setOperations 목 객체 반환하도록 설정
         when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        queryService = new StudyRoomParticipantQueryService(redisTemplate);
+        queryService = new StudyParticipationQueryService(redisTemplate);
     }
 
     @Test

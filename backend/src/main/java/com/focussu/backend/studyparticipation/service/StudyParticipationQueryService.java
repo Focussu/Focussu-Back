@@ -1,4 +1,4 @@
-package com.focussu.backend.studyroomparticipant.service;
+package com.focussu.backend.studyparticipation.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -8,7 +8,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
-public class StudyRoomParticipantQueryService {
+public class StudyParticipationQueryService {
 
     private final RedisTemplate<String, String> redisTemplate;
 

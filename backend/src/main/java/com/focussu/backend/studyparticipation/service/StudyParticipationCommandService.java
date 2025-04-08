@@ -1,4 +1,4 @@
-package com.focussu.backend.studyroomparticipant.service;
+package com.focussu.backend.studyparticipation.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class StudyRoomParticipantCommandService {
+public class StudyParticipationCommandService {
 
     private final RedisTemplate<String, String> redisTemplate;
 

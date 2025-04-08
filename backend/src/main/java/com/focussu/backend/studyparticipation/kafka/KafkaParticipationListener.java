@@ -1,6 +1,6 @@
-package com.focussu.backend.studyroomparticipant.kafka;
+package com.focussu.backend.studyparticipation.kafka;
 
-import com.focussu.backend.studyroomparticipant.service.StudyRoomParticipantCommandService;
+import com.focussu.backend.studyparticipation.service.StudyParticipationCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONException;
@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class KafkaParticipantListener {
+public class KafkaParticipationListener {
 
-    private final StudyRoomParticipantCommandService commandService;
+    private final StudyParticipationCommandService commandService;
 
     @KafkaListener(topics = "mediasoup.user.connected", groupId = "participant-group")
     public void onUserConnected(String message) {

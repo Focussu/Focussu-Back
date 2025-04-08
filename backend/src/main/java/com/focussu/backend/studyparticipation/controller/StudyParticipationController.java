@@ -1,7 +1,7 @@
-package com.focussu.backend.studyroomparticipant.controller;
+package com.focussu.backend.studyparticipation.controller;
 
-import com.focussu.backend.studyroomparticipant.service.StudyRoomParticipantCommandService;
-import com.focussu.backend.studyroomparticipant.service.StudyRoomParticipantQueryService;
+import com.focussu.backend.studyparticipation.service.StudyParticipationCommandService;
+import com.focussu.backend.studyparticipation.service.StudyParticipationQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +14,10 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/study-rooms")
 @RequiredArgsConstructor
-public class StudyRoomParticipantController {
+public class StudyParticipationController {
 
-    private final StudyRoomParticipantCommandService commandService;
-    private final StudyRoomParticipantQueryService queryService;
+    private final StudyParticipationCommandService commandService;
+    private final StudyParticipationQueryService queryService;
 
     @GetMapping("/{roomId}/participants")
     public ResponseEntity<Set<String>> getParticipants(@PathVariable Long roomId) {
