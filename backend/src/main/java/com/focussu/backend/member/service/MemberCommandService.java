@@ -1,7 +1,7 @@
 package com.focussu.backend.member.service;
 
-import com.focussu.backend.member.dto.MemberRequest;
-import com.focussu.backend.member.dto.MemberResponse;
+import com.focussu.backend.member.dto.MemberCreateRequest;
+import com.focussu.backend.member.dto.MemberCreateResponse;
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +13,8 @@ public class MemberCommandService {
 
     private final MemberRepository memberRepository;
 
-    public MemberResponse createMember(MemberRequest request) {
+    public MemberCreateResponse createMember(MemberCreateRequest request) {
         Member member = memberRepository.save(request.toEntity());
-        return MemberResponse.from(member);
+        return MemberCreateResponse.from(member);
     }
 }

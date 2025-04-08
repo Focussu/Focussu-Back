@@ -1,7 +1,7 @@
 package com.focussu.backend.member.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.focussu.backend.member.dto.MemberRequest;
+import com.focussu.backend.member.dto.MemberCreateRequest;
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +32,7 @@ class MemberControllerTest {
     @Test
     void createMember_and_getMember_success() throws Exception {
         // given
-        MemberRequest request = new MemberRequest("정태", "test@email.com", "pass123");
+        MemberCreateRequest request = new MemberCreateRequest("정태", "test@email.com", "pass123");
 
         // when: 회원 생성
         String response = mockMvc.perform(post("/api/members")

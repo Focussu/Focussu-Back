@@ -2,7 +2,7 @@ package com.focussu.backend.member.dto;
 
 import com.focussu.backend.member.model.Member;
 
-public record MemberRequest(String name, String email, String password) {
+public record MemberCreateRequest(String name, String email, String password) {
 
     public Member toEntity() {
         return Member.builder()
