@@ -3,7 +3,7 @@ server:
 
 spring:
   config:
-    import: optional:file:application-secret.yml
+    import: optional:classpath:application-secret.yml
 
   application:
     name: focussu-backend
@@ -11,13 +11,10 @@ spring:
   datasource:
     url: jdbc:mysql://focussu-mysql:3306/focussu-db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASSWORD}
-
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -32,7 +29,7 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
     listener:
-      missing-topics-fatal: false  # 테스트 시 토픽 없으면 무시
+      missing-topics-fatal: false
 
   data:
     redis:

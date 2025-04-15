@@ -1,6 +1,6 @@
 package com.focussu.backend.config;
 
-import com.focussu.backend.filter.JwtRequestFilter;
+import com.focussu.backend.auth.filter.JwtRequestFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,7 +32,7 @@ public class SecurityConfig {
     private static final String[] AUTH_WHITELIST = {
             "api/members",
             "api/join",
-            "api/log-in"
+            "auth/login/**"
     };
 
     @Bean
