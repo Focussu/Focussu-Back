@@ -25,4 +25,10 @@ public class MemberController {
     public ResponseEntity<MemberCreateResponse> getMember(@PathVariable Long id) {
         return ResponseEntity.ok(queryService.getMember(id));
     }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Void> deleteMember(@PathVariable Long id) {
+        commandService.deleteMember(id);
+        return ResponseEntity.noContent().build();
+    }
 }
