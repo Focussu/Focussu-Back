@@ -2,6 +2,7 @@ package com.focussu.backend.member.service;
 
 import com.focussu.backend.member.dto.MemberCreateRequest;
 import com.focussu.backend.member.dto.MemberCreateResponse;
+import com.focussu.backend.member.exception.MemberException;
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
 import jakarta.transaction.Transactional;
@@ -13,6 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 
+import static com.focussu.backend.common.exception.ErrorCode.MEMBER_ALREADY_EXISTS;
+import static com.focussu.backend.common.exception.ErrorCode.MEMBER_NOT_FOUND;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -21,18 +25,21 @@ public class MemberCommandService {
     private final PasswordEncoder passwordEncoder;
 
     public MemberCreateResponse createMember(MemberCreateRequest request) {
-        if (memberRepository.findByEmail(request.email()).isPresent()) {
-            throw new RuntimeException("이미 등록된 이메일입니다.");
-        }
+        memberRepository.findByEmail(request.email())
+                .ifPresent(member -> {
+                    throw new MemberException(MEMBER_ALREADY_EXISTS);
+                });
+
         Member saved = memberRepository.save(
                 request.toEntity(passwordEncoder.encode(request.password()))
         );
         return MemberCreateResponse.from(saved);
     }
 
+
     public void deleteMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("회원이 존재하지 않습니다."));
+                .orElseThrow(() -> new MemberException(MEMBER_NOT_FOUND));
         member.setIsDeleted(true);
         memberRepository.save(member);
     }
