@@ -1,4 +1,9 @@
 package com.focussu.backend.auth.dto;
 
-public record AuthenticationResponse(String accessToken) {
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record AuthenticationResponse(
+        @Schema(description = "JWT 액세스 토큰", example = "eyJhbGciOiJIUzI1NiIs...")
+        String accessToken
+) {
 }
