@@ -1,6 +1,8 @@
 package com.focussu.backend.config;
 
+import com.focussu.backend.auth.filter.JwtExceptionFilter;
 import com.focussu.backend.auth.filter.JwtRequestFilter;
+import com.focussu.backend.common.constant.WhiteList;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,33 +24,23 @@ public class SecurityConfig {
 
     private final JwtRequestFilter jwtRequestFilter;
 
-    private static final String[] DOCS_WHITELIST = {
-            "/v3/api-docs/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/docs",
-    };
-
-    private static final String[] AUTH_WHITELIST = {
-            "api/members",
-            "api/join",
-            "auth/login/**"
-    };
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtExceptionFilter jwtExceptionFilter) throws Exception {
         http
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(DOCS_WHITELIST).permitAll()
-                        .requestMatchers(AUTH_WHITELIST).permitAll()
-                        .anyRequest().authenticated())
+                        // WhiteList enum에서 DOCS, AUTH, CHECKER 항목의 URL 패턴들을 각각 가져와서 허용
+                        .requestMatchers(WhiteList.DOCS.getPatterns()).permitAll()
+                        .requestMatchers(WhiteList.AUTH.getPatterns()).permitAll()
+                        .requestMatchers(WhiteList.CHECKER.getPatterns()).permitAll()
+                        .anyRequest().authenticated()
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtExceptionFilter, JwtRequestFilter.class);
 
         return http.build();
-
     }
 
     @Bean
