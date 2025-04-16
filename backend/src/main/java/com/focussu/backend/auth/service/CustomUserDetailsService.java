@@ -1,5 +1,7 @@
 package com.focussu.backend.auth.service;
 
+import com.focussu.backend.auth.exception.AuthException;
+import com.focussu.backend.common.exception.ErrorCode;
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
 import org.springframework.security.core.userdetails.User;
@@ -22,9 +24,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String email) {
         Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+                .orElseThrow(() -> new AuthException(ErrorCode.AUTH_INVALID_CREDENTIALS));
         return new User(member.getEmail(), member.getPassword(), new ArrayList<>());
     }
+
 }
