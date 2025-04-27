@@ -26,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -129,7 +131,7 @@ public class AuthenticationController {
         if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             tokenService.removeToken(token);
-            return ResponseEntity.ok("로그아웃 성공");
+            return ResponseEntity.ok(Map.of("message", "로그아웃 성공"));
         }
 
         return ResponseEntity.badRequest().body(
