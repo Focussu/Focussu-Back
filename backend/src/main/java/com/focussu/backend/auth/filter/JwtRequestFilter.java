@@ -1,11 +1,9 @@
 package com.focussu.backend.auth.filter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.focussu.backend.auth.exception.AuthException;
 import com.focussu.backend.auth.service.CustomUserDetailsService;
 import com.focussu.backend.auth.service.TokenService;
 import com.focussu.backend.auth.util.JwtTokenUtil;
-import com.focussu.backend.common.constant.WhiteList;
 import com.focussu.backend.common.exception.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,12 +15,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import static com.focussu.backend.common.constant.WhiteList.isWhitelisted;
 

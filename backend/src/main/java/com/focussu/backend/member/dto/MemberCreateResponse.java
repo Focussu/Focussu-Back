@@ -2,7 +2,6 @@ package com.focussu.backend.member.dto;
 
 import com.focussu.backend.member.model.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 
 public record MemberCreateResponse(
