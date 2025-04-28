@@ -2,7 +2,6 @@ package com.focussu.backend.studyroom.controller;
 
 import com.focussu.backend.studyroom.dto.StudyRoomCreateRequest;
 import com.focussu.backend.studyroom.dto.StudyRoomCreateResponse;
-import com.focussu.backend.studyroom.model.StudyRoom;
 import com.focussu.backend.studyroom.service.StudyRoomCommandService;
 import com.focussu.backend.studyroom.service.StudyRoomQueryService;
 import lombok.RequiredArgsConstructor;
