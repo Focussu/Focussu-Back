@@ -2,6 +2,7 @@ package com.focussu.backend.auth.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record AuthenticationRequest(
 
@@ -19,6 +20,7 @@ public record AuthenticationRequest(
                 minLength = 8,
                 maxLength = 20
         )
+        @Size(min = 8, max = 20, message = "비밀번호는 8자 이상 20자 이하여야 합니다")
         String password
 
 ) {
