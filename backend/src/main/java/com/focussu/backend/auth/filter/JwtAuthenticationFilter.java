@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(7);
         String username = jwtTokenUtil.getUsernameFromToken(token);
         // 로그아웃된 토큰인지 체크
-        if (!tokenService.isTokenRevoked(token)) {
+        if (!tokenService.isTokenNotRevoked(token)) {
             throw new AuthException(ErrorCode.AUTH_TOKEN_NOT_FOUND);
         }
 
