@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,7 @@ public class MemberController {
     @Operation(summary = "회원가입", description = "신규 회원을 등록합니다.")
     @ApiResponses({
             @ApiResponse(
-                    responseCode = "200",
+                    responseCode = "201",
                     description = "회원가입 성공",
                     content = @Content(
                             mediaType = "application/json",
@@ -60,7 +61,9 @@ public class MemberController {
     public ResponseEntity<MemberCreateResponse> createMember(
             @RequestBody @Valid MemberCreateRequest request
     ) {
-        return ResponseEntity.ok(commandService.createMember(request));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(commandService.createMember(request));
     }
 
     @Operation(summary = "회원 조회", description = "회원 ID로 회원 정보를 조회합니다.")
