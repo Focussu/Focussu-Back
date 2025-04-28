@@ -9,12 +9,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 public class AuthExceptionFilter extends OncePerRequestFilter {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -27,8 +29,10 @@ public class AuthExceptionFilter extends OncePerRequestFilter {
         try {
             chain.doFilter(req, res);
         } catch (AuthException ex) {
+            log.warn("인증 예외 발생: {}", ex.getMessage());
             writeError(res, ex.getErrorCode());
         } catch (Exception ex) {
+            log.error("필터 체인 처리 중 예상치 못한 예외 발생", ex);
             writeError(res, ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
