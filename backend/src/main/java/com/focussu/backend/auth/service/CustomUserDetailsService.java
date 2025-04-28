@@ -27,6 +27,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new AuthException(ErrorCode.AUTH_INVALID_CREDENTIALS));
+        if (member.getIsDeleted()) {
+            throw new UsernameNotFoundException("계정이 삭제되었습니다: " + email);
+        }
         return new User(member.getEmail(), member.getPassword(), new ArrayList<>());
     }
 
