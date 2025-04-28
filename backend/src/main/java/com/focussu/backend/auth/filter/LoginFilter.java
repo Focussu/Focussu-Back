@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -80,13 +81,20 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
             throws IOException, ServletException {
         // 인증 실패 응답
         res.setCharacterEncoding("UTF-8");
-        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        ErrorCode code;
+        int status;
+        if (failed instanceof BadCredentialsException) {
+            code = ErrorCode.AUTH_INVALID_CREDENTIALS;
+            status = HttpServletResponse.SC_UNAUTHORIZED;
+        } else if (failed instanceof AuthenticationServiceException) {
+            code = ErrorCode.INVALID_INPUT;
+            status = HttpServletResponse.SC_BAD_REQUEST;
+        } else {
+            code = ErrorCode.INTERNAL_SERVER_ERROR;
+            status = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+        res.setStatus(status);
         res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        mapper.writeValue(res.getWriter(),
-                ErrorResponse.from(failed instanceof AuthenticationServiceException
-                        ? ErrorCode.AUTH_INVALID_CREDENTIALS
-                        : ErrorCode.INTERNAL_SERVER_ERROR
-                )
-        );
+        mapper.writeValue(res.getWriter(), ErrorResponse.from(code));
     }
 }
