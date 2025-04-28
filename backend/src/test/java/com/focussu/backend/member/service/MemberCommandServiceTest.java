@@ -2,6 +2,7 @@ package com.focussu.backend.member.service;
 
 import com.focussu.backend.member.dto.MemberCreateRequest;
 import com.focussu.backend.member.dto.MemberCreateResponse;
+import com.focussu.backend.member.exception.MemberException;
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
 import org.junit.jupiter.api.Test;
@@ -91,7 +92,7 @@ public class MemberCommandServiceTest {
         when(memberRepository.findByEmail(email)).thenReturn(Optional.of(existingMember));
 
         // When & Then: 중복 이메일이면 RuntimeException 발생 확인
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        MemberException exception = assertThrows(MemberException.class, () -> {
             memberCommandService.createMember(request);
         });
         assertEquals("이미 등록된 이메일입니다.", exception.getMessage(), "예외 메시지가 일치해야 합니다.");
