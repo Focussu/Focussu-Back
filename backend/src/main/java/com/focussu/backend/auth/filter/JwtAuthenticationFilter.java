@@ -22,55 +22,50 @@ import java.io.IOException;
 
 import static com.focussu.backend.common.constant.WhiteList.isWhitelisted;
 
-@Component
 @RequiredArgsConstructor
-public class JwtRequestFilter extends OncePerRequestFilter {
-
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService userDetailsService;
     private final JwtTokenUtil jwtTokenUtil;
     private final TokenService tokenService;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain chain) throws ServletException, IOException {
-        String requestUri = request.getRequestURI();
 
-        // whitelist에 해당하면 토큰 검사를 건너뛰도록 함
-        if (isWhitelisted(requestUri)) {
-            chain.doFilter(request, response);
+    @Override
+    protected void doFilterInternal(HttpServletRequest req,
+                                    @NonNull HttpServletResponse res,
+                                    @NonNull FilterChain chain)
+            throws ServletException, IOException {
+        String uri = req.getRequestURI();
+        // 로그인·로그아웃·문서·체커 URL 은 패스
+        if (uri.startsWith("/auth/") || isWhitelisted(uri)) {
+            chain.doFilter(req, res);
             return;
         }
-        final String authHeader = request.getHeader("Authorization");
-        String username = null;
-        String jwt = null;
 
-        if (!StringUtils.hasText(authHeader)) {
-            // 토큰 미제공 시 예외 발생 (여기서 JwtExceptionFilter가 처리)
+        String header = req.getHeader("Authorization");
+        if (!StringUtils.hasText(header)) {
             throw new AuthException(ErrorCode.AUTH_TOKEN_MISSING);
         }
-        if (!authHeader.startsWith("Bearer ")) {
+        if (!header.startsWith("Bearer ")) {
             throw new AuthException(ErrorCode.AUTH_TOKEN_MALFORMED);
         }
-        jwt = authHeader.substring(7);
 
-        // 파싱하며 토큰 유효성 검증 (예: 만료, 서명 오류 등)
-        username = jwtTokenUtil.getUsernameFromToken(jwt);
-
-        // 로그아웃 토큰
-        if (!tokenService.isTokenRevoked(jwt)) {
+        String token = header.substring(7);
+        String username = jwtTokenUtil.getUsernameFromToken(token);
+        // 로그아웃된 토큰인지 체크
+        if (!tokenService.isTokenRevoked(token)) {
             throw new AuthException(ErrorCode.AUTH_TOKEN_NOT_FOUND);
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             var userDetails = userDetailsService.loadUserByUsername(username);
-            if (jwtTokenUtil.validateToken(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            if (jwtTokenUtil.validateToken(token, userDetails)) {
+                var auth = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
-        chain.doFilter(request, response);
+        chain.doFilter(req, res);
     }
 }

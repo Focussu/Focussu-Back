@@ -1,4 +1,9 @@
-### Auth Login
+### 인증 체크
+GET http://localhost:8080/test/security-check
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+### 로그인
 POST http://localhost:8080/auth/login
 Content-Type: application/json
 
@@ -10,4 +15,4 @@ Content-Type: application/json
 ### 로그아웃 (토큰 포함)
 POST http://localhost:8080/auth/logout
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGdtYWlsLmNvbSIsImlhdCI6MTc0NTc0MDE1NywiZXhwIjoxNzQ1Nzc2MTU3fQ.VZdn7eKgWfqG2MYo7LRc4GcvLrZLGFtyq3ufGgNKTlg
+Authorization: Bearer {{TOKEN}}

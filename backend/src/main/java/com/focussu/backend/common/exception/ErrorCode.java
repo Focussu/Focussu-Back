@@ -15,6 +15,7 @@ public enum ErrorCode {
     AUTH_TOKEN_EXPIRED(401, "토큰이 만료되었습니다."),
     AUTH_TOKEN_INVALID_SIGNATURE(401, "토큰 서명이 유효하지 않습니다."),
     AUTH_TOKEN_NOT_FOUND(401, "로그아웃된 토큰입니다."),
+    AUTH_INVALID_LOGOUT_REQUEST(401, "잘못된 로그아웃 요청입니다."),
 
     // Member 관련 에러
     MEMBER_NOT_FOUND(404, "회원을 찾을 수 없습니다."),
