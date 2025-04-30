@@ -61,6 +61,6 @@ public class TestController {
             )
     })
     public ResponseEntity<Map<String, String>> checkHealth() {
-        return ResponseEntity.ok(Map.of("message", "SERVER IS HEALTHY"));
+        return ResponseEntity.ok(Map.of("message", "SERVER IS HEALTHY!"));
     }
 }
