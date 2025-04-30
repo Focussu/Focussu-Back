@@ -1,52 +1,69 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# —————————————————————————————————
-# 0) 필수 환경변수
-: "${BACKEND_IMAGE:?Need to set BACKEND_IMAGE (e.g. <ECR_URI>:<TAG>)}"
-: "${AWS_DEFAULT_REGION:?Need to set AWS_DEFAULT_REGION}"
+CLUSTER="focussu-backend"
+SERVICE="focussu-backend-prod-service"
+REGION="${AWS_DEFAULT_REGION}"
 
-# ECS 리소스 이름
-ECS_CLUSTER="focussu-backend"
-ECS_SERVICE="focussu-backend-prod-service"
-# —————————————————————————————————
+echo "🔧 Deploying image: $BACKEND_IMAGE (region: $REGION)"
 
-echo "🔧 Deploying image → $BACKEND_IMAGE"
-
-# 1) 현재 서비스에 연결된 Task Definition ARN 조회
-CURRENT_TD_ARN=$(aws ecs describe-services \
-  --cluster "$ECS_CLUSTER" \
-  --services "$ECS_SERVICE" \
-  --query 'services[0].taskDefinition' \
-  --output text)
-echo "ℹ️ Current task definition ARN: $CURRENT_TD_ARN"
-
-# 2) Task Definition 상세 가져오기
+# 1) 현재 Task Definition 불러오기
 TD_JSON=$(aws ecs describe-task-definition \
-  --task-definition "$CURRENT_TD_ARN" \
-  --output json \
-  --query 'taskDefinition')
+  --task-definition "$SERVICE" \
+  --region "$REGION" \
+  --output json)
 
-# 3) register-task-definition 에 넘길 JSON로 정리
-TD_REG_INPUT=$(echo "$TD_JSON" | jq \
-  'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)
-   | .containerDefinitions[0].image = "'"$BACKEND_IMAGE"'"'
-)
+# 2) jq로 image & env 업데이트
+NEW_DEF=$(echo "$TD_JSON" | jq -r --arg IMG "$BACKEND_IMAGE" \
+  --arg SPRING_PROFILES_ACTIVE "$SPRING_PROFILES_ACTIVE" \
+  --arg RDS_ENDPOINT "$RDS_ENDPOINT" \
+  --arg RDS_PORT "$RDS_PORT" \
+  --arg RDS_DATABASE "$RDS_DATABASE" \
+  --arg RDS_USER "$RDS_USER" \
+  --arg RDS_PASSWORD "$RDS_PASSWORD" \
+  --arg ELASTICACHE_ENDPOINT "$ELASTICACHE_ENDPOINT" \
+  --arg ELASTICACHE_PORT "$ELASTICACHE_PORT" \
+  --arg JWT_SECRET_KEY "$JWT_SECRET_KEY" \
+  --arg JWT_EXPIRATION_TIME "$JWT_EXPIRATION_TIME" \
+  --arg KAFKA_BOOTSTRAP_SERVERS "$KAFKA_BOOTSTRAP_SERVERS" '
+.taskDefinition
+| {
+    family: .family,
+    networkMode: .networkMode,
+    requiresCompatibilities: .requiresCompatibilities,
+    cpu: .cpu,
+    memory: .memory,
+    containerDefinitions:
+      (.containerDefinitions | map(
+         .image = $IMG
+         | .environment = [
+             { name: "SPRING_PROFILES_ACTIVE",  value: $SPRING_PROFILES_ACTIVE },
+             { name: "RDS_ENDPOINT",            value: $RDS_ENDPOINT },
+             { name: "RDS_PORT",                value: $RDS_PORT },
+             { name: "RDS_DATABASE",            value: $RDS_DATABASE },
+             { name: "RDS_USER",                value: $RDS_USER },
+             { name: "RDS_PASSWORD",            value: $RDS_PASSWORD },
+             { name: "ELASTICACHE_ENDPOINT",    value: $ELASTICACHE_ENDPOINT },
+             { name: "ELASTICACHE_PORT",        value: $ELASTICACHE_PORT },
+             { name: "JWT_SECRET_KEY",          value: $JWT_SECRET_KEY },
+             { name: "JWT_EXPIRATION_TIME",     value: $JWT_EXPIRATION_TIME },
+             { name: "KAFKA_BOOTSTRAP_SERVERS", value: $KAFKA_BOOTSTRAP_SERVERS }
+           ]
+      ))
+  }
+')
 
-# 4) 새 Task Definition 리비전 등록
-NEW_TD_ARN=$(aws ecs register-task-definition \
-  --cli-input-json "$TD_REG_INPUT" \
-  --query 'taskDefinition.taskDefinitionArn' \
-  --output text)
-echo "🆕 Registered new task definition ARN: $NEW_TD_ARN"
+# 3) 새 Task Definition 등록
+aws ecs register-task-definition \
+  --cli-input-json "$NEW_DEF" \
+  --region "$REGION" > /dev/null
 
-# 5) 서비스 업데이트 + 강제 재배포
+# 4) 서비스 롤링 업데이트
 aws ecs update-service \
-  --cluster "$ECS_CLUSTER" \
-  --service "$ECS_SERVICE" \
-  --task-definition "$NEW_TD_ARN" \
+  --cluster "$CLUSTER" \
+  --service "$SERVICE" \
   --force-new-deployment \
-  --region "$AWS_DEFAULT_REGION" \
+  --region "$REGION" \
   --output json
 
-echo "✅ Deployment triggered!"
+echo "✅ Deployment triggered for $SERVICE"
