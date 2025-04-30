@@ -19,10 +19,12 @@ jobs:
           distribution: temurin
 
       - name: Grant permission to Gradle wrapper
-        run: chmod +x ./backend/gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./backend
 
       - name: Build JAR with Gradle
-        run: ./backend/gradlew build -x test --no-daemon
+        run: ./gradlew build -x test --no-daemon
+        working-directory: ./backend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
