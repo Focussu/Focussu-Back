@@ -12,6 +12,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Grant permission to Gradle wrapper
+        run: chmod +x ./backend/gradlew
+
+      - name: Build JAR with Gradle
+        run: ./backend/gradlew build -x test --no-daemon
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
