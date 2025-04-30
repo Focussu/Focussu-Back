@@ -17,12 +17,12 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI() {
         Server localServer = new Server()
-                .url("http://localhost:8080")
+                .url("http://localhost:80")
                 .description("Local 서버");
 
         Server prodServer = new Server()
-                .url("https://focussu-api.life")
-                .description("개발 서버");
+                .url("https://focussu-api.com")
+                .description("프로덕션 서버");
 
         // Bearer 토큰을 위한 스키마 설정
         SecurityScheme bearerScheme = new SecurityScheme()

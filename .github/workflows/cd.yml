@@ -1,0 +1,43 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t focussu-backend:latest ./backend
+          docker tag focussu-backend:latest ${{ secrets.ECR_REPO_URI }}:latest
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.ECR_REPO_URI }}:latest
+
+      - name: Run deploy script
+        run: bash ./deploy/deploy-prod.sh
+        env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: ap-northeast-2
+            BACKEND_IMAGE: ${{ secrets.ECR_REPO_URI }}:latest
+            SPRING_PROFILES_ACTIVE: prod
+            RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+            RDS_PORT: ${{ secrets.RDS_PORT }}
+            RDS_DATABASE: ${{ secrets.RDS_DATABASE }}
+            RDS_USER: ${{ secrets.RDS_USER }}
+            RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+            KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+
