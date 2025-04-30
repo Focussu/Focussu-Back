@@ -41,7 +41,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t focussu-backend:latest .
+          docker build -t focussu-backend:latest -f ./backend/Dockerfile .
           docker tag focussu-backend:latest ${{ secrets.ECR_REPO_URI }}:latest
 
       - name: Push Docker image
