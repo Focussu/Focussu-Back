@@ -1,0 +1,40 @@
+# src/main/resources/application-prod.yml
+
+spring:
+  config:
+    import: optional:application-secret.yml
+
+  application:
+    name: focussu-backend
+
+  datasource:
+    url: jdbc:mysql://${RDS_ENDPOINT}:${RDS_PORT}/${RDS_DATABASE}?serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    properties:
+      security.protocol: SSL
+
+server:
+  port: 80
+
+springdoc:
+  default-produces-media-type: application/json
+  api-docs:
+    resolve-schema-properties: true
+  swagger-ui:
+    path: /docs
+
+security:
+  jwt:
+    secret-key: ${JWT_SECRET_KEY}
+    expiration-time: ${JWT_EXPIRATION_TIME}
