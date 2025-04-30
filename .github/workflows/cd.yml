@@ -22,7 +22,7 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: ./backend
 
-      - name: Build JAR without tests
+      - name: Build JAR with Gradle
         run: ./gradlew build -x test --no-daemon
         working-directory: ./backend
 
@@ -41,7 +41,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t focussu-backend:latest ./backend
+          docker build -t focussu-backend:latest .
           docker tag focussu-backend:latest ${{ secrets.ECR_REPO_URI }}:latest
 
       - name: Push Docker image
