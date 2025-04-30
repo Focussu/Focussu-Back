@@ -22,7 +22,7 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: ./backend
 
-      - name: Build JAR with Gradle
+      - name: Build JAR without tests
         run: ./gradlew build -x test --no-daemon
         working-directory: ./backend
 

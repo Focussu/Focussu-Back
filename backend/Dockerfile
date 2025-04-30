@@ -1,14 +1,10 @@
 # backend/Dockerfile
 
-# --- Stage 1: Build the JAR using Gradle ---
-FROM gradle:7.6.0-jdk17 AS builder
-WORKDIR /app
-COPY . .
-RUN gradle clean build -x test --no-daemon
-
-# --- Stage 2: Run the app using OpenJDK ---
 FROM openjdk:17-slim
 WORKDIR /app
-COPY --from=builder /app/build/libs/*.jar app.jar
+
+# CI에서 빌드된 JAR을 그대로 사용
+COPY build/libs/*.jar app.jar
+
 EXPOSE 80
 ENTRYPOINT ["java", "-jar", "app.jar"]
