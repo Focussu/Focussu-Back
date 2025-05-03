@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: $ {{ECR_REPOSOTIRY }}
+  ECR_REPOSITORY: $ {{ECR_REPOSITORY }}
 
 jobs:
   build-and-push:
