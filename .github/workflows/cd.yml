@@ -97,10 +97,11 @@ jobs:
               sudo apt install awscli
             fi
 
-            # Docker 데몬 실행 확인 및 시작
-            if ! sudo systemctl status docker | grep -q "active (running)"; then
-              sudo systemctl start docker
+            # Docker Credentials Helper 설치 및 설정
+            if ! command -v pass &> /dev/null; then
+              sudo apt-get install -y pass
             fi
+            echo "{\"credsStore\":\"pass\"}" > ~/.docker/config.json
 
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
@@ -120,6 +121,42 @@ jobs:
               CURRENT_SERVICE="backend-green"; TARGET_SERVICE="backend-blue"; TARGET_PORT="8080"; TARGET_IMAGE_TAG="blue"; CURRENT_IMAGE_TAG="green";
             fi
 
+            echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
+            echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
+
+            echo "Creating .env file..."
+            echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
+            echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
+            echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
+            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
+            echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
+            echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
+            echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $APP_DIR/.env
+            echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> $APP_DIR/.env
+            echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
+            echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
+
+            echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+            echo "Tagging image as $TARGET_IMAGE_TAG..."
+            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
+
+            echo "Starting $TARGET_SERVICE..."
+            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
+
+            echo "Waiting for health check..."
+            timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
+            HEALTH_CHECK_EXIT_CODE=$?
+
+            if [ "$HEALTH_CHECK_EXIT_CODE" -ne 0 ]; then echo "Health check failed. Rolling back..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE; exit 1; fi
+
+            echo "Switching Nginx traffic..."; echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc; docker exec nginx-proxy nginx -s reload; echo "Traffic switched."; sleep 5;
+            echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
+            echo "Cleaning up..."; docker image prune -af;
+            echo "Deployment Completed!"
+            
+            
             echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
             echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
 
