@@ -25,9 +25,6 @@ dependencies {
 	// docs
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 
-	//kafka
-	implementation 'org.springframework.kafka:spring-kafka'
-
 	// jwt
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -53,7 +50,6 @@ dependencies {
 	// test
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.kafka:spring-kafka-test'
 }
 
 tasks.named('test') {
