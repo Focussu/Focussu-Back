@@ -12,7 +12,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       # 아래 값들은 EC2의 .env 파일에서 로드됨
-      SPRING_DATASOURCE_URL: jdbc:mysql://${RDS_ENDPOINT}:3306/${DB_NAME}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_URL: jdbc:mysql://${RDS_ENDPOINT}:3306/${RDS_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
       SPRING_DATASOURCE_USERNAME: ${RDS_USER}
       SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
       SPRING_REDIS_HOST: ${ELASTICACHE_ENDPOINT}

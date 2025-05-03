@@ -122,7 +122,7 @@ jobs:
             echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
             echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
             echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
-            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
+            echo "RDS_USERNAME=${{ secrets.RDS_USER }}" >> $APP_DIR/.env
             echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
             echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
             echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
