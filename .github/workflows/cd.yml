@@ -97,23 +97,13 @@ jobs:
               sudo apt install awscli
             fi
 
-            # Docker Credentials Helper 설치 및 설정
-            if ! command -v pass &> /dev/null; then
-              sudo apt-get install -y pass
-            fi
-            if ! command -v docker-credential-pass &> /dev/null; then
-              sudo apt-get install -y docker-credential-pass
-            fi
-            echo "{\"credsStore\":\"pass\"}" > ~/.docker/config.json
-
-            # PATH에 docker-credential-pass 추가
-            export PATH=$PATH:/usr/bin
-
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
             export APP_DIR="/home/ubuntu/app"
             export AWS_REGION=${{ secrets.AWS_REGION }}
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
             # EC2에서 ECR 로그인
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
