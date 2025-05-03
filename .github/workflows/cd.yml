@@ -91,13 +91,25 @@ jobs:
           port: 22
           script_stop: true
           script: |
+            # AWS CLI 설치 확인 및 설치
+            if ! command -v aws &> /dev/null; then
+              sudo apt update
+              sudo apt install awscli
+            fi
+
+            # Docker 데몬 실행 확인 및 시작
+            if ! sudo systemctl status docker | grep -q "active (running)"; then
+              sudo systemctl start docker
+            fi
+
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
             export APP_DIR="/home/ubuntu/app"
+            export AWS_REGION=${{ secrets.AWS_REGION }}
 
             # EC2에서 ECR 로그인
-            eval $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY)
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
             cd $APP_DIR
             CURRENT_UPSTREAM_URL=$(cat $APP_DIR/service-env.inc | grep -o 'http://[^;]*')
