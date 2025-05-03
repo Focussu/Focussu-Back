@@ -131,6 +131,12 @@ jobs:
             echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
             echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
 
+            # Debugging: Print the .env file content (without sensitive values)
+            echo "Verifying .env file exists:"
+            ls -la $APP_DIR/.env
+            echo "Environment variables in .env (masking sensitive values):"
+            grep -v "PASSWORD\|SECRET" $APP_DIR/.env || echo "No non-sensitive vars found"
+
             echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             echo "Tagging image as $TARGET_IMAGE_TAG..."
@@ -144,7 +150,16 @@ jobs:
             fi
 
             echo "Starting $TARGET_SERVICE..."
+            # 환경 변수를 직접 export하여 docker-compose에서 확실하게 사용할 수 있도록 함
+            export $(cat $APP_DIR/.env | xargs)
+            
+            # Docker Compose 실행 시 환경 변수 전달 확인을 위한 로그 추가
+            echo "Starting docker-compose with env file at $APP_DIR/.env"
             docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
+            
+            # 컨테이너 환경 변수 확인 (민감 정보는 표시하지 않음)
+            echo "Verifying container environment variables (non-sensitive only):"
+            docker exec $(docker ps -q -f name=$TARGET_SERVICE) env | grep -v "PASSWORD\|SECRET" || echo "Could not check container environment"
 
             echo "Waiting for health check..."
             timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
