@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: focussu-backend
+  ECR_REPOSITORY: $ {{ECR_REPOSOTIRY }}
 
 jobs:
   build-and-push:
