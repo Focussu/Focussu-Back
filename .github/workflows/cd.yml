@@ -1,193 +1,79 @@
-name: CD - Deploy to EC2 (Blue-Green)
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build-and-push:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.determine_tag.outputs.tag }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-        working-directory: ./backend
-
-      - name: Build Spring Boot JAR (without tests)
-        run: ./gradlew bootJar -x test
-        working-directory: ./backend
-
-      - name: Determine Image Tag (use commit SHA)
-        id: determine_tag
-        run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-
-      - name: Build and tag Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
-          ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
-        run: |
-          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" ./backend \
-            --build-arg JAR_FILE=build/libs/*.jar
-
-      - name: Push Docker image to ECR
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
-          ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
-        run: docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
-
-  deploy-blue-green:
-    name: Deploy to EC2 (Blue-Green)
-    needs: build-and-push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script_stop: true
-          script: |
-            # AWS CLI 설치 확인 및 설치
-            if ! command -v aws &> /dev/null; then
-              sudo apt update
-              sudo apt install awscli
-            fi
-
-            # Docker Credentials Helper 설치 및 설정
-            if ! command -v pass &> /dev/null; then
-              sudo apt-get install -y pass
-            fi
-            echo "{\"credsStore\":\"pass\"}" > ~/.docker/config.json
-
-            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-            export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-            export APP_DIR="/home/ubuntu/app"
-            export AWS_REGION=${{ secrets.AWS_REGION }}
-
-            # EC2에서 ECR 로그인
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-
-            cd $APP_DIR
-            CURRENT_UPSTREAM_URL=$(cat $APP_DIR/service-env.inc | grep -o 'http://[^;]*')
-
-            if [[ "$CURRENT_UPSTREAM_URL" == *"backend-blue"* ]]; then
-              CURRENT_SERVICE="backend-blue"; TARGET_SERVICE="backend-green"; TARGET_PORT="8081"; TARGET_IMAGE_TAG="green"; CURRENT_IMAGE_TAG="blue";
-            else
-              CURRENT_SERVICE="backend-green"; TARGET_SERVICE="backend-blue"; TARGET_PORT="8080"; TARGET_IMAGE_TAG="blue"; CURRENT_IMAGE_TAG="green";
-            fi
-
-            echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
-            echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
-
-            echo "Creating .env file..."
-            echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
-            echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
-            echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
-            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
-            echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $APP_DIR/.env
-            echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> $APP_DIR/.env
-            echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
-            echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
-
-            echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-            echo "Tagging image as $TARGET_IMAGE_TAG..."
-            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
-
-            echo "Starting $TARGET_SERVICE..."
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
-
-            echo "Waiting for health check..."
-            timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
-            HEALTH_CHECK_EXIT_CODE=$?
-
-            if [ "$HEALTH_CHECK_EXIT_CODE" -ne 0 ]; then echo "Health check failed. Rolling back..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE; exit 1; fi
-
-            echo "Switching Nginx traffic..."; echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc; docker exec nginx-proxy nginx -s reload; echo "Traffic switched."; sleep 5;
-            echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
-            echo "Cleaning up..."; docker image prune -af;
-            echo "Deployment Completed!"
-            
-            
-            echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
-            echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
-
-            echo "Creating .env file..."
-            echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
-            echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
-            echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
-            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
-            echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $APP_DIR/.env
-            echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> $APP_DIR/.env
-            echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
-            echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
-
-            echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-            echo "Tagging image as $TARGET_IMAGE_TAG..."
-            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
-
-            echo "Starting $TARGET_SERVICE..."
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
-
-            echo "Waiting for health check..."
-            timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
-            HEALTH_CHECK_EXIT_CODE=$?
-
-            if [ "$HEALTH_CHECK_EXIT_CODE" -ne 0 ]; then echo "Health check failed. Rolling back..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE; exit 1; fi
-
-            echo "Switching Nginx traffic..."; echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc; docker exec nginx-proxy nginx -s reload; echo "Traffic switched."; sleep 5;
-            echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
-            echo "Cleaning up..."; docker image prune -af;
-            echo "Deployment Completed!"
+- name: Deploy via SSH
+  uses: appleboy/ssh-action@v1.0.3
+  with:
+    host: ${{ secrets.EC2_HOST }}
+    username: ubuntu
+    key: ${{ secrets.EC2_SSH_KEY }}
+    port: 22
+    script_stop: true
+    script: |
+      # AWS CLI 설치 확인 및 설치
+      if ! command -v aws &> /dev/null; then
+        sudo apt update
+        sudo apt install awscli
+      fi
+      
+      # Docker Credentials Helper 설치 및 설정
+      if ! command -v pass &> /dev/null; then
+        sudo apt-get install -y pass
+      fi
+      if ! command -v docker-credential-pass &> /dev/null; then
+        sudo apt-get install -y docker-credential-pass
+      fi
+      echo "{\"credsStore\":\"pass\"}" > ~/.docker/config.json
+      
+      # PATH에 docker-credential-pass 추가
+      export PATH=$PATH:/usr/bin
+      
+      export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+      export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+      export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+      export APP_DIR="/home/ubuntu/app"
+      export AWS_REGION=${{ secrets.AWS_REGION }}
+      
+      # EC2에서 ECR 로그인
+      aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      
+      cd $APP_DIR
+      CURRENT_UPSTREAM_URL=$(cat $APP_DIR/service-env.inc | grep -o 'http://[^;]*')
+      
+      if [[ "$CURRENT_UPSTREAM_URL" == *"backend-blue"* ]]; then
+        CURRENT_SERVICE="backend-blue"; TARGET_SERVICE="backend-green"; TARGET_PORT="8081"; TARGET_IMAGE_TAG="green"; CURRENT_IMAGE_TAG="blue";
+      else
+        CURRENT_SERVICE="backend-green"; TARGET_SERVICE="backend-blue"; TARGET_PORT="8080"; TARGET_IMAGE_TAG="blue"; CURRENT_IMAGE_TAG="green";
+      fi
+      
+      echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
+      echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
+      
+      echo "Creating .env file..."
+      echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
+      echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
+      echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
+      echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
+      echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
+      echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
+      echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
+      echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $APP_DIR/.env
+      echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> $APP_DIR/.env
+      echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
+      echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
+      
+      echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+      docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      echo "Tagging image as $TARGET_IMAGE_TAG..."
+      docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
+      
+      echo "Starting $TARGET_SERVICE..."
+      docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
+      
+      echo "Waiting for health check..."
+      timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
+      HEALTH_CHECK_EXIT_CODE=$?
+      
+      if [ "$HEALTH_CHECK_EXIT_CODE" -ne 0 ]; then echo "Health check failed. Rolling back..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE; exit 1; fi
+      
+      echo "Switching Nginx traffic..."; echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc; docker exec nginx-proxy nginx -s reload; echo "Traffic switched."; sleep 5;
+      echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
+      echo "Cleaning up..."; docker image prune -af;
+      echo "Deployment Completed!"
