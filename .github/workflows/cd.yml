@@ -136,6 +136,13 @@ jobs:
             echo "Tagging image as $TARGET_IMAGE_TAG..."
             docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
 
+            echo "Checking if target container exists and stopping it..."
+            if docker ps -a | grep -q "$TARGET_SERVICE"; then
+              echo "Stopping and removing existing $TARGET_SERVICE container..."
+              docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE
+              docker-compose -f $APP_DIR/docker-compose-prod.yml rm -f $TARGET_SERVICE
+            fi
+
             echo "Starting $TARGET_SERVICE..."
             docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
 
@@ -149,4 +156,3 @@ jobs:
             echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
             echo "Cleaning up..."; docker image prune -af;
             echo "Deployment Completed!"
-      
