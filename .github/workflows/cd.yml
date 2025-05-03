@@ -102,10 +102,8 @@ jobs:
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
             export APP_DIR="/home/ubuntu/app"
             export AWS_REGION=${{ secrets.AWS_REGION }}
-            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-            # EC2에서 ECR 로그인
+            # EC2에서 ECR 로그인 (GitHub Actions에서 설정한 환경 변수 사용)
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
             cd $APP_DIR
@@ -151,3 +149,4 @@ jobs:
             echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
             echo "Cleaning up..."; docker image prune -af;
             echo "Deployment Completed!"
+      
