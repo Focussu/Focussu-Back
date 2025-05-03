@@ -88,7 +88,7 @@ public class AuthDocumentController {
 
     @Operation(
             summary = "로그아웃",
-            description = "로그아웃 요청을 처리하는 필터(LogoutFilter)에서 동작합니다."
+            description = "로그아웃 요청(LogoutHandler)에서 동작합니다."
     )
     @ApiResponses({
             @ApiResponse(
