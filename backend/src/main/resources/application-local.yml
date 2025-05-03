@@ -20,17 +20,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
-  kafka:
-    bootstrap-servers: focussu-kafka:9092
-    consumer:
-      group-id: test-group
-      auto-offset-reset: earliest
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-    listener:
-      missing-topics-fatal: false
-
   data:
     redis:
       port: 6379
@@ -42,3 +31,8 @@ springdoc:
     resolve-schema-properties: true
   swagger-ui:
     path: /docs
+
+security:
+  jwt:
+    secret-key: de740246db0e808083b1bbd8afb062dfcf5e661f20cb41cc7283366d1d8fcccbdbacf3ef8af9ac7159c9ac3a4302fc2321dba0d510a5695a62dd9728ea1ade417542d25e6d80312bc66b13852621f3be0a0188c9e122fedb30186455a4ee2f6ad6bf6daac10db65e9386f3bdf099bee7a18f2e1ef572ab212d7c3a87248d5f1e55243559adfc539df7a2d9110840a825ef27d14899ce630eed7e5366485b642d0f516f468b20af3a6bd67051f00be7a27f122c785f80091bcff6e510330a6f3f30629397a4439281559647cd9c6922d560fd2bd158b527357ff01377eb5333ea9e77f48908b9f96781eaa0fc5f67e7fa4d54d6088ef26c61e43ffb647412b
+    expiration-time: 86400

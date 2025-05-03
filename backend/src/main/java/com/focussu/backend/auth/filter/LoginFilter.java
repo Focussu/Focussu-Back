@@ -13,6 +13,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 public class LoginFilter extends UsernamePasswordAuthenticationFilter {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -63,15 +65,26 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
                                             FilterChain chain,
                                             Authentication auth)
             throws IOException, ServletException {
+
+        // 1. 인증 성공 후 사용자 정보 가져오기
         String username = auth.getName();
-        // 반드시 UserDetails 로드해서 토큰 생성
         UserDetails user = userDetailsService.loadUserByUsername(username);
-        String jwt = jwtTokenUtil.generateToken(user);
-        tokenService.saveToken(jwt, user.getUsername());
+
+        // 2. 새로운 JWT 토큰 생성
+        String newJwt = jwtTokenUtil.generateToken(user);
+
+        // 3. (추가) Redis에서 해당 사용자의 기존 토큰 삭제
+        tokenService.removeTokenByUsername(user.getUsername());
+
+        // 4. 새로운 토큰을 Redis에 저장
+        tokenService.saveToken(newJwt, user.getUsername());
+        log.info("[LOGIN FILTER] Save {} Token..", user.getUsername());
+
+        // 5. 응답 설정
         res.setCharacterEncoding("UTF-8");
-        res.addHeader("Authorization", "Bearer " + jwt);
+        res.addHeader("Authorization", "Bearer " + newJwt);
         res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        mapper.writeValue(res.getWriter(), new AuthenticationResponse(jwt));
+        mapper.writeValue(res.getWriter(), new AuthenticationResponse(newJwt));
     }
 
     @Override

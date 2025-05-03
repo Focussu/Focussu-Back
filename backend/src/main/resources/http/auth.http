@@ -15,4 +15,4 @@ Content-Type: application/json
 ### 로그아웃 (토큰 포함)
 POST http://localhost:8080/auth/logout
 Content-Type: application/json
-Authorization: Bearer {{TOKEN}}
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGdtYWlsLmNvbSIsImlhdCI6MTc0NjI4Njg4NCwiZXhwIjoxNzQ2MzIyODg0fQ.IGEBvODGFL2L8DO7TGhOM0F30rr5RS1V-lTnKZTG2nw

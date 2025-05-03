@@ -1,0 +1,48 @@
+# .github/workflows/ci.yml
+name: CI - Build and Test
+
+on:
+  pull_request: # Pull Request 이벤트 발생 시
+    branches: [ main ] # main 브랜치를 대상으로 하는 PR
+  workflow_dispatch: # 수동 실행도 가능하게
+
+jobs:
+  build-test:
+    name: Build and Run Tests
+    runs-on: ubuntu-latest # 실행 환경 지정
+
+    steps:
+      # 1. 코드 체크아웃: 리포지토리의 코드를 워크플로우 실행 환경으로 가져옵니다.
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. JDK 설정: 빌드 및 테스트에 사용할 Java 버전(17)을 설정합니다.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin' # Temurin JDK 사용
+          cache: 'gradle' # Gradle 의존성 캐싱으로 빌드 시간 단축
+
+      # 3. Gradle 설정: Gradle 빌드 환경을 설정합니다.
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        # with:
+        #   gradle-version: wrapper # 프로젝트의 Gradle Wrapper 사용을 명시 (선택 사항)
+
+      # 4. gradlew 실행 권한 부여: Gradle Wrapper 스크립트에 실행 권한을 줍니다.
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./backend # backend 디렉토리에서 실행
+
+      # 5. Gradle 빌드 및 테스트: Gradle의 build 태스크를 실행합니다. 이 태스크는 컴파일, 테스트 실행 등을 포함합니다.
+      - name: Build and Test with Gradle
+        run: ./gradlew build # 'build' 태스크는 기본적으로 'test' 태스크를 포함하여 실행합니다.
+        working-directory: ./backend
+
+      # (선택 사항) Dockerfile 빌드 가능성 테스트 (실제 푸시는 하지 않음)
+      # - name: Build Docker image (test only)
+      #   run: |
+      #     # Dockerfile이 정상적으로 빌드되는지만 확인
+      #     docker build -t ci-build-test ./backend \
+      #       --build-arg JAR_FILE=build/libs/*.jar
