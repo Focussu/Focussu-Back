@@ -96,6 +96,9 @@ jobs:
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
             export APP_DIR="/home/ubuntu/app"
 
+            # EC2에서 ECR 로그인
+            eval $(aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY)
+
             cd $APP_DIR
             CURRENT_UPSTREAM_URL=$(cat $APP_DIR/service-env.inc | grep -o 'http://[^;]*')
 
