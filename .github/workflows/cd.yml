@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.determine_tag.outputs.tag }}
-      next_color: ${{ steps.decide_color.outputs.next }}
 
     steps:
       - name: Checkout code
@@ -34,9 +33,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
         working-directory: ./backend
@@ -45,32 +41,20 @@ jobs:
         run: ./gradlew bootJar -x test
         working-directory: ./backend
 
-      - name: Determine Image Tag
+      - name: Determine Image Tag (SHA7)
         id: determine_tag
         run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Decide blue or green
-        id: decide_color
-        run: |
-          CURRENT=$(curl -s http://${{ secrets.EC2_HOST }}/env | grep backend-blue && echo blue || echo green)
-          if [ "$CURRENT" = "blue" ]; then
-            echo "next=green" >> $GITHUB_OUTPUT
-          else
-            echo "next=blue" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build and push Docker image
+      - name: Build & Push Docker Image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
-          COLOR_TAG: ${{ steps.decide_color.outputs.next }}
-          ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
+          ECR_REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG:      ${{ steps.determine_tag.outputs.tag }}
         run: |
-          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" ./backend \
-            --build-arg JAR_FILE=build/libs/*.jar
-          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            ./backend --build-arg JAR_FILE=build/libs/*.jar
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
   deploy-blue-green:
     name: Deploy to EC2 (Blue-Green)
@@ -92,10 +76,10 @@ jobs:
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host:     ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          port:     22
           script_stop: true
           script: |
             set -euo pipefail
@@ -106,20 +90,22 @@ jobs:
             export APP_DIR="/home/ubuntu/app"
             export AWS_REGION=${{ secrets.AWS_REGION }}
 
+            # AWS 로그인
             aws ecr get-login-password --region "$AWS_REGION" \
               | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
             cd "$APP_DIR"
 
-            # 1) 현재 서비스 감지
-            if docker ps --format '{{.Names}}' | grep -q '^backend-blue$'; then
+            # 서비스 감지
+            if [ -n "$(docker ps -q -f name=backend-blue)" ]; then
               CURRENT=backend-blue; TARGET=backend-green; PORT=8081
             else
               CURRENT=backend-green; TARGET=backend-blue; PORT=8080
             fi
+
             echo "⏳ Switching from $CURRENT to $TARGET …"
 
-            # 2) .env 파일 생성 (echo 사용)
+            # .env 생성
             rm -f .env
             echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" >> .env
             echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> .env
@@ -130,37 +116,34 @@ jobs:
             echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> .env
             echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
             echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> .env
+
+            # Compose 변수
             echo "ECR_REGISTRY=$ECR_REGISTRY" >> .env
             echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> .env
             echo "IMAGE_TAG=$IMAGE_TAG" >> .env
 
-            # 3) 새 이미지 pull
+            # 새 이미지 pull
             docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-            # 4) 기존 컨테이너 중지·제거
-            if docker ps -a --format '{{.Names}}' | grep -q "^$CURRENT$"; then
+            # 기존 컨테이너 중지·제거
+            if [ -n "$(docker ps -q -f name=$CURRENT)" ]; then
               docker-compose -f docker-compose-prod.yml stop "$CURRENT"
               docker-compose -f docker-compose-prod.yml rm -f "$CURRENT"
             fi
 
-            # 5) 새 컨테이너 배포
+            # 새 컨테이너 배포
             export $(cat .env | xargs)
             docker-compose -f docker-compose-prod.yml --env-file .env \
               up -d --no-deps "$TARGET"
 
-            # 6) Nginx 트래픽 전환
+            # Nginx 트래픽 스위칭
             echo "set \$service_url http://$TARGET:$PORT;" \
               | sudo tee service-env.inc
-            if ! docker ps --format '{{.Names}}' | grep -q '^nginx-proxy$'; then
+
+            if [ -z "$(docker ps -q -f name=nginx-proxy)" ]; then
               docker-compose -f docker-compose-prod.yml up -d nginx
             fi
+
             docker exec nginx-proxy nginx -s reload
 
             echo "✅ Deployed $TARGET (image:$IMAGE_TAG); stopped $CURRENT."
-
-
-
-
-
-
-

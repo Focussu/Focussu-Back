@@ -2,39 +2,49 @@ version: '3.8'
 
 services:
   backend-blue:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:blue
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
     container_name: backend-blue
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      RDS_ENDPOINT: ${RDS_ENDPOINT}
-      RDS_PORT: ${RDS_PORT}
-      RDS_DATABASE: ${RDS_DATABASE}
-      RDS_USERNAME: ${RDS_USERNAME}
-      RDS_PASSWORD: ${RDS_PASSWORD}
+      RDS_ENDPOINT:         ${RDS_ENDPOINT}
+      RDS_PORT:             ${RDS_PORT}
+      RDS_DATABASE:         ${RDS_DATABASE}
+      RDS_USERNAME:         ${RDS_USERNAME}
+      RDS_PASSWORD:         ${RDS_PASSWORD}
       ELASTICACHE_ENDPOINT: ${ELASTICACHE_ENDPOINT}
-      ELASTICACHE_PORT: ${ELASTICACHE_PORT}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_EXPIRATION_TIME: ${JWT_EXPIRATION_TIME}
+      ELASTICACHE_PORT:     ${ELASTICACHE_PORT}
+      JWT_SECRET_KEY:       ${JWT_SECRET_KEY}
+      JWT_EXPIRATION_TIME:  ${JWT_EXPIRATION_TIME}
+
+      ECR_REGISTRY:        ${ECR_REGISTRY}
+      ECR_REPOSITORY:      ${ECR_REPOSITORY}
+      IMAGE_TAG:           ${IMAGE_TAG}
+
     restart: always
 
   backend-green:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:green
+    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
     container_name: backend-green
     ports:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      RDS_ENDPOINT: ${RDS_ENDPOINT}
-      RDS_PORT: ${RDS_PORT}
-      RDS_DATABASE: ${RDS_DATABASE}
-      RDS_USERNAME: ${RDS_USERNAME}
-      RDS_PASSWORD: ${RDS_PASSWORD}
+      RDS_ENDPOINT:         ${RDS_ENDPOINT}
+      RDS_PORT:             ${RDS_PORT}
+      RDS_DATABASE:         ${RDS_DATABASE}
+      RDS_USERNAME:         ${RDS_USERNAME}
+      RDS_PASSWORD:         ${RDS_PASSWORD}
       ELASTICACHE_ENDPOINT: ${ELASTICACHE_ENDPOINT}
-      ELASTICACHE_PORT: ${ELASTICACHE_PORT}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_EXPIRATION_TIME: ${JWT_EXPIRATION_TIME}
+      ELASTICACHE_PORT:     ${ELASTICACHE_PORT}
+      JWT_SECRET_KEY:       ${JWT_SECRET_KEY}
+      JWT_EXPIRATION_TIME:  ${JWT_EXPIRATION_TIME}
+
+      ECR_REGISTRY:        ${ECR_REGISTRY}
+      ECR_REPOSITORY:      ${ECR_REPOSITORY}
+      IMAGE_TAG:           ${IMAGE_TAG}
+
     restart: always
 
   nginx:
