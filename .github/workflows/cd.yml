@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.determine_tag.outputs.tag }}
-      registry:   ${{ steps.login-ecr.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +34,7 @@ jobs:
 
       - name: Build & Push Docker Image
         env:
-          ECR_REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY:   ${{ secrets.ECR_REGISTRY }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG:      ${{ steps.determine_tag.outputs.tag }}
         run: |
@@ -67,18 +66,29 @@ jobs:
           username: ubuntu
           key:      ${{ secrets.EC2_SSH_KEY }}
           port:     22
+          envs: |
+            AWS_REGION:        ${{ secrets.AWS_REGION }}
+            ECR_REGISTRY:      ${{ secrets.ECR_REGISTRY }}
+            ECR_REPOSITORY:    ${{ secrets.ECR_REPOSITORY }}
+            IMAGE_TAG:         ${{ needs.build-and-push.outputs.image_tag }}
+
+            RDS_ENDPOINT:      ${{ secrets.RDS_ENDPOINT }}
+            RDS_PORT:          ${{ secrets.RDS_PORT }}
+            RDS_DATABASE:      ${{ secrets.RDS_DATABASE }}
+            RDS_USERNAME:      ${{ secrets.RDS_USERNAME }}
+            RDS_PASSWORD:      ${{ secrets.RDS_PASSWORD }}
+
+            ELASTICACHE_ENDPOINT: ${{ secrets.ELASTICACHE_ENDPOINT }}
+            ELASTICACHE_PORT:     ${{ secrets.ELASTICACHE_PORT }}
+
+            JWT_SECRET_KEY:       ${{ secrets.JWT_SECRET_KEY }}
+            JWT_EXPIRATION_TIME:  ${{ secrets.JWT_EXPIRATION_TIME }}
           script: |
             set -euo pipefail
             cd /home/ubuntu/app/scripts
             chmod +x deploy.sh
-
-            echo "DEBUG: AWS_REGION=${{ secrets.AWS_REGION }}"
-            echo "DEBUG: ECR_REGISTRY=${{ needs.build-and-push.outputs.registry }}"
-            echo "DEBUG: ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}"
-            echo "DEBUG: IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}"
-
             ./deploy.sh \
-              "${{ secrets.AWS_REGION }}" \
-              "${{ needs.build-and-push.outputs.registry }}" \
-              "${{ secrets.ECR_REPOSITORY }}" \
-              "${{ needs.build-and-push.outputs.image_tag }}"
+              "$AWS_REGION" \
+              "$ECR_REGISTRY" \
+              "$ECR_REPOSITORY" \
+              "$IMAGE_TAG"
