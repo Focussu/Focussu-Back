@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load environment variables from app root .env
+# Load environment variables from .env in app root
 ENV_FILE="/home/ubuntu/app/.env"
 if [ -f "$ENV_FILE" ]; then
   set -a
@@ -9,13 +9,12 @@ if [ -f "$ENV_FILE" ]; then
   source "$ENV_FILE"
   set +a
 else
-  echo "Error: .env file not found at $ENV_FILE"
+  echo "Error: .env file not found at $ENV_FILE" >&2
   exit 1
 fi
 
 APP_DIR="/home/ubuntu/app"
 
-# Log deploy parameters for visibility
 echo "🔧 Deploy parameters from .env:"
 echo "  AWS_REGION    = ${AWS_REGION}"
 echo "  ECR_REGISTRY  = ${ECR_REGISTRY}"
@@ -23,28 +22,29 @@ echo "  ECR_REPOSITORY= ${ECR_REPOSITORY}"
 echo "  IMAGE_TAG     = ${IMAGE_TAG}"
 echo
 
-# 1) AWS ECR 로그인
+# 1) AWS ECR login
 aws ecr get-login-password --region "${AWS_REGION}" \
   | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
-# 2) 서비스 디렉토리로 이동
+# 2) Change to app directory
+echo "📁 Changing directory to $APP_DIR"
 cd "$APP_DIR"
 
-# 3) 현재 실행 중인 인스턴스 감지 and determine TARGET/CURRENT
-BLUE_ID="$(docker ps -q -f name=backend-blue || true)"
-if [ -z "$BLUE_ID" ]; then
-  CURRENT=backend-green
-  TARGET=backend-blue
-  PORT=8080
-else
+# 3) Determine current and target for blue-green
+echo "🔍 Detecting active instance"
+if docker ps -q -f name=backend-blue | grep -q .; then
   CURRENT=backend-blue
   TARGET=backend-green
   PORT=8081
+else
+  CURRENT=backend-green
+  TARGET=backend-blue
+  PORT=8080
 fi
 
-echo "⏳ Switching traffic from ${CURRENT} to ${TARGET} on port ${PORT}..."
+echo "⏳ Switching traffic: $CURRENT → $TARGET on port $PORT"
 
-# 4) docker-compose용 .env 생성
+# 4) Create .env for docker-compose
 cat > .env <<EOF
 RDS_ENDPOINT=${RDS_ENDPOINT}
 RDS_PORT=${RDS_PORT}
@@ -60,24 +60,26 @@ ECR_REPOSITORY=${ECR_REPOSITORY}
 IMAGE_TAG=${IMAGE_TAG}
 EOF
 
-# 5) 새 이미지 pull
+echo "🚀 Pulling image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 docker pull "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-# 6) 기존 컨테이너 중지 및 제거
+# 5) Stop and remove current container if exists
+echo "🛑 Stopping and removing $CURRENT if running"
 if docker ps -q -f name="$CURRENT" | grep -q .; then
   docker-compose -f docker-compose-prod.yml stop "$CURRENT"
   docker-compose -f docker-compose-prod.yml rm -f "$CURRENT"
 fi
 
-# 7) 새 컨테이너 기동
+# 6) Start new target container
+echo "▶️ Starting $TARGET"
 docker-compose -f docker-compose-prod.yml --env-file .env up -d --no-deps "$TARGET"
 
-# 8) nginx-proxy가 있다면 reload, 아니면 새로 기동
-echo "set \$service_url http://${TARGET}:${PORT};" > service-env.inc
-if docker ps -q -f name=nginx-proxy | grep -q .; then
-  docker exec nginx-proxy nginx -s reload
-else
-  docker-compose -f docker-compose-prod.yml up -d nginx
-fi
+# 7) Update Nginx proxy_pass inside container
+echo "🔁 Updating Nginx proxy_pass to http://${TARGET}:${PORT}"
+docker exec nginx-proxy sh -c \
+  "sed -i 's|proxy_pass http://[^;]*;|proxy_pass http://${TARGET}:${PORT};|' /etc/nginx/conf.d/*.conf"
 
-echo "✅ Deployed ${TARGET} (image:${IMAGE_TAG}); stopped ${CURRENT}."
+echo "🔄 Reloading Nginx"
+docker exec nginx-proxy nginx -s reload
+
+echo "✅ Deployed $TARGET and reloaded Nginx successfully"
