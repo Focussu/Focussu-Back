@@ -21,7 +21,7 @@ public class SwaggerConfig {
                 .description("Local 서버");
 
         Server prodServer = new Server()
-                .url("https://focussu-api.life")
+                .url("https://focussu-api.com")
                 .description("개발 서버");
 
         // Bearer 토큰을 위한 스키마 설정
