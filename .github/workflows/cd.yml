@@ -57,8 +57,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          source: "scripts/deploy.sh"
-          target: "/home/ubuntu/app/scripts/"
+          source: scripts/deploy.sh
+          target: /home/ubuntu/app/scripts/
 
       - name: SSH & Run deploy.sh
         uses: appleboy/ssh-action@v1
