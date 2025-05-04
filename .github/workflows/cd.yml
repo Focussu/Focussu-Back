@@ -10,14 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.determine_tag.outputs.tag }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region:            ${{ secrets.AWS_REGION }}
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Amazon ECR
@@ -34,9 +35,9 @@ jobs:
 
       - name: Build & Push Docker Image
         env:
-          ECR_REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG:      ${{ steps.determine_tag.outputs.tag }}
+          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
         run: |
           docker build \
             -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
@@ -52,25 +53,25 @@ jobs:
       - name: Copy deploy.sh to EC2
         uses: appleboy/scp-action@v1
         with:
-          host:     ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key:      ${{ secrets.EC2_SSH_KEY }}
-          port:     22
-          source:   "scripts/deploy.sh"
-          target:   "/home/ubuntu/app/scripts/"
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "scripts/deploy.sh"
+          target: "/home/ubuntu/app/scripts/"
 
       - name: SSH & Run deploy.sh
         uses: appleboy/ssh-action@v1
         with:
-          host:     ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key:      ${{ secrets.EC2_SSH_KEY }}
-          port:     22
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             set -euo pipefail
 
             export AWS_REGION=${{ secrets.AWS_REGION }}
-            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+            export ECR_REGISTRY=${{ needs.build-and-push.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
             export RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
