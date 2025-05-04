@@ -33,7 +33,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -46,11 +45,11 @@ jobs:
         run: ./gradlew bootJar -x test
         working-directory: ./backend
 
-      - name: Determine Image Tag (use commit SHA)
+      - name: Determine Image Tag
         id: determine_tag
         run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Decide blue or green for next deploy
+      - name: Decide blue or green
         id: decide_color
         run: |
           CURRENT=$(curl -s http://${{ secrets.EC2_HOST }}/env | grep backend-blue && echo blue || echo green)
@@ -60,22 +59,15 @@ jobs:
             echo "next=blue" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and tag Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
-          ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
-        run: |
-          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" ./backend \
-            --build-arg JAR_FILE=build/libs/*.jar
-
-      - name: Tag as blue or green and push
+      - name: Build and push Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
           COLOR_TAG: ${{ steps.decide_color.outputs.next }}
           ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
         run: |
+          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" ./backend \
+            --build-arg JAR_FILE=build/libs/*.jar
           docker tag "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
@@ -97,7 +89,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy via SSH
+      - name: SSH deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -147,13 +139,13 @@ jobs:
             fi
 
             export $(cat $APP_DIR/.env | xargs)
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
+            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps $TARGET_SERVICE
 
-            echo "Waiting for health check (via curl)..."
+            echo "Waiting for health check..."
             for i in {1..30}; do
               response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/test/health-check)
               if [ "$response" = "200" ]; then
-                echo "Healthy!"; break;
+                echo "Healthy!"; break
               fi
               echo "Attempt $i failed ($response). Retrying..."
               sleep 10
