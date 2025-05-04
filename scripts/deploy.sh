@@ -58,7 +58,6 @@ docker-compose -f docker-compose-prod.yml --env-file .env up -d --no-deps "$TARG
 
 # 8) Nginx 재기동 또는 설정 리로드
 echo "🔄 nginx-proxy 재기동"
-docker-compose -f docker-compose-prod.yml up -d nginx
-# 또는: docker exec nginx-proxy nginx -s reload
+docker restart nginx-proxy
 
 echo "✅ 배포 완료: ${TARGET} → ${TARGET}:8080 (호스트 ${HOST_PORT})"
