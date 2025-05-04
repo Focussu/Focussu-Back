@@ -17,8 +17,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region:          ${{ secrets.AWS_REGION }}
-          aws-access-key-id:   ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Amazon ECR
@@ -69,29 +69,16 @@ jobs:
           port:     22
           script: |
             set -euo pipefail
-
-            export AWS_REGION=${{ secrets.AWS_REGION }}
-            export ECR_REGISTRY=${{ needs.build-and-push.outputs.registry }}
-            export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-
-            export RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
-            export RDS_PORT=${{ secrets.RDS_PORT }}
-            export RDS_DATABASE=${{ secrets.RDS_DATABASE }}
-            export RDS_USERNAME=${{ secrets.RDS_USERNAME }}
-            export RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
-
-            export ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}
-            export ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}
-
-            export JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            export JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
-
             cd /home/ubuntu/app/scripts
             chmod +x deploy.sh
 
+            echo "DEBUG: AWS_REGION=${{ secrets.AWS_REGION }}"
+            echo "DEBUG: ECR_REGISTRY=${{ needs.build-and-push.outputs.registry }}"
+            echo "DEBUG: ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}"
+            echo "DEBUG: IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}"
+
             ./deploy.sh \
-              "$AWS_REGION" \
-              "$ECR_REGISTRY" \
-              "$ECR_REPOSITORY" \
-              "$IMAGE_TAG"
+              "${{ secrets.AWS_REGION }}" \
+              "${{ needs.build-and-push.outputs.registry }}" \
+              "${{ secrets.ECR_REPOSITORY }}" \
+              "${{ needs.build-and-push.outputs.image_tag }}"
