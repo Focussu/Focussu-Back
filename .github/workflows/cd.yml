@@ -89,7 +89,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: SSH deploy
+      - name: SSH & Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -98,61 +98,69 @@ jobs:
           port: 22
           script_stop: true
           script: |
+            set -euo pipefail
+
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-            export COLOR_TAG=${{ needs.build-and-push.outputs.next_color }}
             export APP_DIR="/home/ubuntu/app"
             export AWS_REGION=${{ secrets.AWS_REGION }}
 
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+            aws ecr get-login-password --region "$AWS_REGION" \
+              | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-            cd $APP_DIR
-            if [ "$COLOR_TAG" = "blue" ]; then
-              TARGET_SERVICE="backend-blue"
-              TARGET_PORT="8080"
-              CURRENT_SERVICE="backend-green"
+            cd "$APP_DIR"
+
+            # 1) 현재 서비스 감지
+            if docker ps --format '{{.Names}}' | grep -q '^backend-blue$'; then
+              CURRENT=backend-blue; TARGET=backend-green; PORT=8081
             else
-              TARGET_SERVICE="backend-green"
-              TARGET_PORT="8081"
-              CURRENT_SERVICE="backend-blue"
+              CURRENT=backend-green; TARGET=backend-blue; PORT=8080
+            fi
+            echo "⏳ Switching from $CURRENT to $TARGET …"
+
+            # 2) .env 파일 생성 (echo 사용)
+            rm -f .env
+            echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" >> .env
+            echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> .env
+            echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> .env
+            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> .env
+            echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> .env
+            echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> .env
+            echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> .env
+            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
+            echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> .env
+            echo "ECR_REGISTRY=$ECR_REGISTRY" >> .env
+            echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> .env
+            echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+
+            # 3) 새 이미지 pull
+            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            # 4) 기존 컨테이너 중지·제거
+            if docker ps -a --format '{{.Names}}' | grep -q "^$CURRENT$"; then
+              docker-compose -f docker-compose-prod.yml stop "$CURRENT"
+              docker-compose -f docker-compose-prod.yml rm -f "$CURRENT"
             fi
 
-            echo "Creating .env file..."
-            echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
-            echo "RDS_PORT=${{ secrets.RDS_PORT }}" >> $APP_DIR/.env
-            echo "RDS_DATABASE=${{ secrets.RDS_DATABASE }}" >> $APP_DIR/.env
-            echo "RDS_USERNAME=${{ secrets.RDS_USERNAME }}" >> $APP_DIR/.env
-            echo "RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}" >> $APP_DIR/.env
-            echo "ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}" >> $APP_DIR/.env
-            echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> $APP_DIR/.env
-            echo "JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}" >> $APP_DIR/.env
-            echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
-            echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
+            # 5) 새 컨테이너 배포
+            export $(cat .env | xargs)
+            docker-compose -f docker-compose-prod.yml --env-file .env \
+              up -d --no-deps "$TARGET"
 
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$COLOR_TAG
-
-            if docker ps -a | grep -q "$TARGET_SERVICE"; then
-              docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE
-              docker-compose -f $APP_DIR/docker-compose-prod.yml rm -f $TARGET_SERVICE
+            # 6) Nginx 트래픽 전환
+            echo "set \$service_url http://$TARGET:$PORT;" \
+              | sudo tee service-env.inc
+            if ! docker ps --format '{{.Names}}' | grep -q '^nginx-proxy$'; then
+              docker-compose -f docker-compose-prod.yml up -d nginx
             fi
-
-            export $(cat $APP_DIR/.env | xargs)
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps $TARGET_SERVICE
-
-            echo "Switching Nginx traffic..."
-            echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc
-
-            if docker ps -a --format '{{.Names}}' | grep -q "^nginx-proxy$"; then
-              if ! docker ps --format '{{.Names}}' | grep -q "^nginx-proxy$"; then
-                docker-compose -f $APP_DIR/docker-compose-prod.yml up -d nginx
-              fi
-            else
-              docker-compose -f $APP_DIR/docker-compose-prod.yml up -d nginx
-            fi
-
             docker exec nginx-proxy nginx -s reload
-            docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE
-            docker image prune -af
-            echo "Deployment Completed!"
+
+            echo "✅ Deployed $TARGET (image:$IMAGE_TAG); stopped $CURRENT."
+
+
+
+
+
+
+
