@@ -23,13 +23,16 @@ echo "  IMAGE_TAG     = ${IMAGE_TAG}"
 echo
 
 # 1) AWS ECR login
+echo "🔑 Logging into ECR"
 aws ecr get-login-password --region "${AWS_REGION}" \
   | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
 # 2) Change to app directory
+echo "📁 Switching to $APP_DIR"
 cd "$APP_DIR"
 
-echo "🔍 Detecting active instance"
+# 3) Detect active instance and set target for blue-green
+echo "🔍 Detecting active container"
 if docker ps -q -f name=backend-blue | grep -q .; then
   CURRENT=backend-blue
   TARGET=backend-green
@@ -40,10 +43,10 @@ else
   PORT=8080
 fi
 
-echo "⏳ Switching traffic: $CURRENT → $TARGET on port $PORT"
+echo "⏳ Swapping traffic: $CURRENT → $TARGET on port $PORT"
 
-# 3) Write .env for docker-compose
-echo "📝 Writing .env for docker-compose"
+# 4) Write .env for docker-compose
+echo "📝 Generating .env file for docker-compose"
 cat > .env <<EOF
 RDS_ENDPOINT=${RDS_ENDPOINT}
 RDS_PORT=${RDS_PORT}
@@ -59,34 +62,23 @@ ECR_REPOSITORY=${ECR_REPOSITORY}
 IMAGE_TAG=${IMAGE_TAG}
 EOF
 
-# 4) Pull new image
+# 5) Pull new image
 echo "🚀 Pulling image ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
-# 5) Stop and remove current container if exists
+# 6) Stop and remove current container if exists
 echo "🛑 Stopping and removing $CURRENT if running"
 if docker ps -q -f name="$CURRENT" | grep -q .; then
   docker-compose -f docker-compose-prod.yml stop "$CURRENT"
   docker-compose -f docker-compose-prod.yml rm -f "$CURRENT"
 fi
 
-# 6) Start target container
+# 7) Start target container
 echo "▶️ Starting $TARGET"
 docker-compose -f docker-compose-prod.yml --env-file .env up -d --no-deps "$TARGET"
 
-# 7) Ensure nginx-proxy is running before updating its config
-echo "⏳ Waiting for nginx-proxy to be healthy"
-until docker ps --filter "name=nginx-proxy" --filter "status=running" | grep -q "nginx-proxy"; do
-  echo "Waiting for nginx-proxy..."
-  sleep 2
-done
+# 8) Restart nginx-proxy to pickup new backend
+echo "🔄 Restarting nginx-proxy service"
+docker-compose -f docker-compose-prod.yml up -d nginx
 
-echo "🔁 Updating proxy_pass in default.conf"
-docker exec nginx-proxy sh -c \
-  "sed -i 's|proxy_pass http://[^;]*;|proxy_pass http://${TARGET}:${PORT};|' /etc/nginx/conf.d/default.conf"
-
-# 8) Reload Nginx
-echo "🔄 Reloading Nginx"
-docker exec nginx-proxy nginx -s reload
-
-echo "✅ Deployed $TARGET on port $PORT and reloaded Nginx successfully"
+echo "✅ Deployed $TARGET on port $PORT and restarted nginx-proxy successfully"
