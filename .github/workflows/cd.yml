@@ -147,13 +147,32 @@ jobs:
             fi
 
             export $(cat $APP_DIR/.env | xargs)
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE nginx
+            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
 
-            echo "Waiting for health check..."
-            timeout 300s bash -c 'for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:'$TARGET_PORT'/test/health-check); if [ "$response" = "200" ]; then echo "Healthy!"; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done'
+            echo "Waiting for health check (via curl)..."
+            for i in {1..30}; do
+              response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/test/health-check)
+              if [ "$response" = "200" ]; then
+                echo "Healthy!"; break;
+              fi
+              echo "Attempt $i failed ($response). Retrying..."
+              sleep 10
+              if [ "$i" -eq 30 ]; then
+                echo "Health check failed. Aborting."; exit 1
+              fi
+            done
 
             echo "Switching Nginx traffic..."
             echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc
+
+            if docker ps -a --format '{{.Names}}' | grep -q "^nginx-proxy$"; then
+              if ! docker ps --format '{{.Names}}' | grep -q "^nginx-proxy$"; then
+                docker-compose -f $APP_DIR/docker-compose-prod.yml up -d nginx
+              fi
+            else
+              docker-compose -f $APP_DIR/docker-compose-prod.yml up -d nginx
+            fi
+
             docker exec nginx-proxy nginx -s reload
             docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE
             docker image prune -af
