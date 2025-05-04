@@ -16,8 +16,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_REGION }}
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Login to Amazon ECR
@@ -34,9 +34,9 @@ jobs:
 
       - name: Build & Push Docker Image
         env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REGISTRY:   ${{ secrets.ECR_REGISTRY }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
+          IMAGE_TAG:      ${{ steps.determine_tag.outputs.tag }}
         run: |
           docker build \
             -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
@@ -52,24 +52,24 @@ jobs:
       - name: Copy deploy.sh to EC2
         uses: appleboy/scp-action@v1
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host:     ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          source: scripts/deploy.sh
-          target: /home/ubuntu/app/scripts/deploy.sh
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          port:     22
+          source:   scripts/deploy.sh
+          target:   /home/ubuntu/app/deploy.sh
 
       - name: SSH & Create .env + Run deploy.sh
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host:     ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          port:     22
           script: |
             set -euo pipefail
-            
-            # 1) .env 생성
+
+            # 1) 앱 루트에 .env 생성
             cat > /home/ubuntu/app/.env <<EOF
             AWS_REGION=${{ secrets.AWS_REGION }}
             ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
@@ -85,8 +85,7 @@ jobs:
             JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
             EOF
-            
-            # 2) 스크립트 실행
-            cd /home/ubuntu/app/scripts
-            chmod +x deploy.sh
-            ./deploy.sh
+
+            # 2) 스크립트 권한 부여 및 실행
+            chmod +x /home/ubuntu/app/deploy.sh
+            /home/ubuntu/app/deploy.sh
