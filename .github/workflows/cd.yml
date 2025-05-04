@@ -147,7 +147,7 @@ jobs:
             fi
 
             export $(cat $APP_DIR/.env | xargs)
-            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
+            docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE nginx
 
             echo "Waiting for health check..."
             timeout 300s bash -c 'for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:'$TARGET_PORT'/test/health-check); if [ "$response" = "200" ]; then echo "Healthy!"; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done'
