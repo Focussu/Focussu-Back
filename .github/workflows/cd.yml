@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.determine_tag.outputs.tag }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -63,7 +62,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           source: "scripts/deploy.sh"
-          target: "/home/ubuntu/app/scripts/"
+          target: "/home/ubuntu/app"
 
       - name: SSH & Run deploy.sh
         uses: appleboy/ssh-action@v1
@@ -88,6 +87,7 @@ jobs:
             JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
           script: |
             set -euo pipefail
-            cd /home/ubuntu/app/scripts
-            chmod +x deploy.sh
-            ./deploy.sh
+
+            cd /home/ubuntu/app
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh
