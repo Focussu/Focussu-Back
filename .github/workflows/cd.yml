@@ -59,7 +59,7 @@ jobs:
           source:   scripts/deploy.sh
           target:   /home/ubuntu/app/scripts/
 
-      - name: SSH & Run deploy.sh
+      - name: SSH & Create .env + Run deploy.sh
         uses: appleboy/ssh-action@v1
         with:
           host:     ${{ secrets.EC2_HOST }}
@@ -68,11 +68,28 @@ jobs:
           port:     22
           script: |
             set -euo pipefail
+
+            # 1) .env 파일 생성 (앱 루트에)
+            cat > /home/ubuntu/app/.env <<EOF
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+
+            RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
+            RDS_PORT=${{ secrets.RDS_PORT }}
+            RDS_DATABASE=${{ secrets.RDS_DATABASE }}
+            RDS_USERNAME=${{ secrets.RDS_USERNAME }}
+            RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
+
+            ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}
+            ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}
+
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
+            EOF
+
+            # 2) deploy.sh 실행
             cd /home/ubuntu/app/scripts
             chmod +x deploy.sh
-
-            ./deploy.sh \
-              '${{ secrets.AWS_REGION }}' \
-              '${{ secrets.ECR_REGISTRY }}' \
-              '${{ secrets.ECR_REPOSITORY }}' \
-              '${{ needs.build-and-push.outputs.image_tag }}'
+            ./deploy.sh
