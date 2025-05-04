@@ -53,7 +53,7 @@ public class TestController {
                                     name = "헬스 체크 성공 예시",
                                     value = """
                                             {
-                                              "message": "SERVER IS HEALTHY!!"
+                                              "message": "SERVER IS HEALTHY!!!"
                                             }
                                             """
                             )
@@ -61,6 +61,6 @@ public class TestController {
             )
     })
     public ResponseEntity<Map<String, String>> checkHealth() {
-        return ResponseEntity.ok(Map.of("message", "SERVER IS HEALTHY!!"));
+        return ResponseEntity.ok(Map.of("message", "SERVER IS HEALTHY!!!"));
     }
 }
