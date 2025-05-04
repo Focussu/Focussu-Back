@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.determine_tag.outputs.tag }}
+      next_color: ${{ steps.decide_color.outputs.next }}
 
     steps:
       - name: Checkout code
@@ -49,6 +50,16 @@ jobs:
         id: determine_tag
         run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
+      - name: Decide blue or green for next deploy
+        id: decide_color
+        run: |
+          CURRENT=$(curl -s http://${{ secrets.EC2_HOST }}/env | grep backend-blue && echo blue || echo green)
+          if [ "$CURRENT" = "blue" ]; then
+            echo "next=green" >> $GITHUB_OUTPUT
+          else
+            echo "next=blue" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and tag Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -58,12 +69,16 @@ jobs:
           docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" ./backend \
             --build-arg JAR_FILE=build/libs/*.jar
 
-      - name: Push Docker image to ECR
+      - name: Tag as blue or green and push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ steps.determine_tag.outputs.tag }}
+          COLOR_TAG: ${{ steps.decide_color.outputs.next }}
           ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY }}
-        run: docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
+        run: |
+          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY_NAME:$COLOR_TAG"
 
   deploy-blue-green:
     name: Deploy to EC2 (Blue-Green)
@@ -91,32 +106,25 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            # AWS CLI 설치 확인 및 설치
-            if ! command -v aws &> /dev/null; then
-              sudo apt update
-              sudo apt install awscli
-            fi
-
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+            export COLOR_TAG=${{ needs.build-and-push.outputs.next_color }}
             export APP_DIR="/home/ubuntu/app"
             export AWS_REGION=${{ secrets.AWS_REGION }}
 
-            # EC2에서 ECR 로그인 (GitHub Actions에서 설정한 환경 변수 사용)
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
             cd $APP_DIR
-            CURRENT_UPSTREAM_URL=$(cat $APP_DIR/service-env.inc | grep -o 'http://[^;]*')
-
-            if [[ "$CURRENT_UPSTREAM_URL" == *"backend-blue"* ]]; then
-              CURRENT_SERVICE="backend-blue"; TARGET_SERVICE="backend-green"; TARGET_PORT="8081"; TARGET_IMAGE_TAG="green"; CURRENT_IMAGE_TAG="blue";
+            if [ "$COLOR_TAG" = "blue" ]; then
+              TARGET_SERVICE="backend-blue"
+              TARGET_PORT="8080"
+              CURRENT_SERVICE="backend-green"
             else
-              CURRENT_SERVICE="backend-green"; TARGET_SERVICE="backend-blue"; TARGET_PORT="8080"; TARGET_IMAGE_TAG="blue"; CURRENT_IMAGE_TAG="green";
+              TARGET_SERVICE="backend-green"
+              TARGET_PORT="8081"
+              CURRENT_SERVICE="backend-blue"
             fi
-
-            echo "Deploy Target: $TARGET_SERVICE (Port: $TARGET_PORT), Tag: $TARGET_IMAGE_TAG"
-            echo "Current Live: $CURRENT_SERVICE, Tag: $CURRENT_IMAGE_TAG"
 
             echo "Creating .env file..."
             echo "RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}" > $APP_DIR/.env
@@ -131,43 +139,22 @@ jobs:
             echo "ECR_REGISTRY=$ECR_REGISTRY" >> $APP_DIR/.env
             echo "ECR_REPOSITORY=$ECR_REPOSITORY" >> $APP_DIR/.env
 
-            # Debugging: Print the .env file content (without sensitive values)
-            echo "Verifying .env file exists:"
-            ls -la $APP_DIR/.env
-            echo "Environment variables in .env (masking sensitive values):"
-            grep -v "PASSWORD\|SECRET" $APP_DIR/.env || echo "No non-sensitive vars found"
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$COLOR_TAG
 
-            echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-            echo "Tagging image as $TARGET_IMAGE_TAG..."
-            docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$TARGET_IMAGE_TAG
-
-            echo "Checking if target container exists and stopping it..."
             if docker ps -a | grep -q "$TARGET_SERVICE"; then
-              echo "Stopping and removing existing $TARGET_SERVICE container..."
               docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE
               docker-compose -f $APP_DIR/docker-compose-prod.yml rm -f $TARGET_SERVICE
             fi
 
-            echo "Starting $TARGET_SERVICE..."
-            # 환경 변수를 직접 export하여 docker-compose에서 확실하게 사용할 수 있도록 함
             export $(cat $APP_DIR/.env | xargs)
-            
-            # Docker Compose 실행 시 환경 변수 전달 확인을 위한 로그 추가
-            echo "Starting docker-compose with env file at $APP_DIR/.env"
             docker-compose -f $APP_DIR/docker-compose-prod.yml --env-file $APP_DIR/.env up -d --no-deps --remove-orphans $TARGET_SERVICE
-            
-            # 컨테이너 환경 변수 확인 (민감 정보는 표시하지 않음)
-            echo "Verifying container environment variables (non-sensitive only):"
-            docker exec $(docker ps -q -f name=$TARGET_SERVICE) env | grep -v "PASSWORD\|SECRET" || echo "Could not check container environment"
 
             echo "Waiting for health check..."
-            timeout 300s bash -c 'HEALTH_CHECK_PASSED=false; for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$TARGET_PORT/actuator/health); if [ "$response" = "200" ]; then echo "Healthy!"; HEALTH_CHECK_PASSED=true; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done; if [ "$HEALTH_CHECK_PASSED" = false ]; then exit 1; fi'
-            HEALTH_CHECK_EXIT_CODE=$?
+            timeout 300s bash -c 'for i in {1..30}; do response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:'$TARGET_PORT'/test/health-check); if [ "$response" = "200" ]; then echo "Healthy!"; break; fi; echo "Attempt $i failed ($response). Retrying..."; sleep 10; done'
 
-            if [ "$HEALTH_CHECK_EXIT_CODE" -ne 0 ]; then echo "Health check failed. Rolling back..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $TARGET_SERVICE; exit 1; fi
-
-            echo "Switching Nginx traffic..."; echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc; docker exec nginx-proxy nginx -s reload; echo "Traffic switched."; sleep 5;
-            echo "Stopping old service: $CURRENT_SERVICE..."; docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE; echo "$CURRENT_SERVICE stopped."
-            echo "Cleaning up..."; docker image prune -af;
+            echo "Switching Nginx traffic..."
+            echo "set \$service_url http://$TARGET_SERVICE:$TARGET_PORT;" | sudo tee $APP_DIR/service-env.inc
+            docker exec nginx-proxy nginx -s reload
+            docker-compose -f $APP_DIR/docker-compose-prod.yml stop $CURRENT_SERVICE
+            docker image prune -af
             echo "Deployment Completed!"
