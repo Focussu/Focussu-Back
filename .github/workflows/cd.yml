@@ -47,20 +47,17 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code (for deploy artifacts)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Copy compose, configs & deploy script to EC2
+      - name: Copy deploy.sh to EC2
         uses: appleboy/scp-action@v1
         with:
           host:     ${{ secrets.EC2_HOST }}
           username: ubuntu
           key:      ${{ secrets.EC2_SSH_KEY }}
           port:     22
-          source: |
-            docker-compose-prod.yml
-            scripts/deploy.sh
-          target:   "/home/ubuntu/app"
+          source:   "scripts/deploy.sh"
+          target:   "/home/ubuntu/app/scripts/"
 
       - name: SSH & Run deploy.sh
         uses: appleboy/ssh-action@v1
@@ -72,7 +69,6 @@ jobs:
           script: |
             set -euo pipefail
 
-            # 환경변수 직접 export
             export AWS_REGION=${{ secrets.AWS_REGION }}
             export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
             export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
@@ -87,6 +83,6 @@ jobs:
             export JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
             export JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
 
-            cd /home/ubuntu/app
-            chmod +x scripts/deploy.sh
-            ./scripts/deploy.sh
+            cd /home/ubuntu/app/scripts
+            chmod +x deploy.sh
+            ./deploy.sh
