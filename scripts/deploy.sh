@@ -42,7 +42,7 @@ fi
 
 echo "⏳ Switching traffic: $CURRENT → $TARGET on port $PORT"
 
-# 3) Create .env for docker-compose
+# 3) Write .env for docker-compose
 echo "📝 Writing .env for docker-compose"
 cat > .env <<EOF
 RDS_ENDPOINT=${RDS_ENDPOINT}
@@ -74,9 +74,13 @@ fi
 echo "▶️ Starting $TARGET"
 docker-compose -f docker-compose-prod.yml --env-file .env up -d --no-deps "$TARGET"
 
-# 7) Clean up old service-env include and update default proxy_pass
-echo "🗑️ Removing old service-env include if present"
-docker exec nginx-proxy sh -c "rm -f /etc/nginx/conf.d/service-env.inc || true"
+# 7) Ensure nginx-proxy is running before updating its config
+echo "⏳ Waiting for nginx-proxy to be healthy"
+until docker ps --filter "name=nginx-proxy" --filter "status=running" | grep -q "nginx-proxy"; do
+  echo "Waiting for nginx-proxy..."
+  sleep 2
+done
+
 echo "🔁 Updating proxy_pass in default.conf"
 docker exec nginx-proxy sh -c \
   "sed -i 's|proxy_pass http://[^;]*;|proxy_pass http://${TARGET}:${PORT};|' /etc/nginx/conf.d/default.conf"
