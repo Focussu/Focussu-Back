@@ -84,28 +84,26 @@ jobs:
           script: |
             #!/bin/bash
             set -euo pipefail
-
-            export ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-            export ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-            export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-            export APP_DIR="/home/ubuntu/app"
-            export AWS_REGION=${{ secrets.AWS_REGION }}
-
-            # AWS 로그인
-            aws ecr get-login-password --region "$AWS_REGION" \
-              | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-
-            # 작업 디렉터리로 이동
+                    
+            APP_DIR=/home/ubuntu/app
             cd "$APP_DIR"
-
-            # ── 안전한 서비스 감지 ────────────────────────────
+                    
+            # ── 안전한 서비스 감지 ─────────────────────────────
             BLUE_ID="$(docker ps -q -f name=backend-blue || true)"
             case "$BLUE_ID" in
-              "")  CURRENT=backend-green; TARGET=backend-blue; PORT=8080 ;;
-              *)   CURRENT=backend-blue;  TARGET=backend-green; PORT=8081 ;;
+                "") 
+                CURRENT=backend-green
+                TARGET=backend-blue
+                PORT=8080
+                ;;
+                *)  
+                CURRENT=backend-blue
+                TARGET=backend-green
+                PORT=8081
+                ;;
             esac
             echo "⏳ Switching from $CURRENT to $TARGET …"
-            # ───────────────────────────────────────────────────
+            # ────────────────────────────────────────────────────
 
             # .env 파일 생성
             rm -f .env
