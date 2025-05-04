@@ -48,7 +48,7 @@ services:
     restart: always
 
   nginx:
-    image: nginx:stable-alpine
+    image: public.ecr.aws/docker/library/nginx:stable-alpine
     container_name: nginx-proxy
     ports:
       - "80:80"
