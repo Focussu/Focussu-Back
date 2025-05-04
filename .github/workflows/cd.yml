@@ -61,32 +61,33 @@ jobs:
 
       - name: SSH & Run deploy.sh
         uses: appleboy/ssh-action@v1
+        env:
+          AWS_REGION:          ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY:        ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY:      ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG:           ${{ needs.build-and-push.outputs.image_tag }}
+
+          RDS_ENDPOINT:        ${{ secrets.RDS_ENDPOINT }}
+          RDS_PORT:            ${{ secrets.RDS_PORT }}
+          RDS_DATABASE:        ${{ secrets.RDS_DATABASE }}
+          RDS_USERNAME:        ${{ secrets.RDS_USERNAME }}
+          RDS_PASSWORD:        ${{ secrets.RDS_PASSWORD }}
+
+          ELASTICACHE_ENDPOINT: ${{ secrets.ELASTICACHE_ENDPOINT }}
+          ELASTICACHE_PORT:     ${{ secrets.ELASTICACHE_PORT }}
+
+          JWT_SECRET_KEY:       ${{ secrets.JWT_SECRET_KEY }}
+          JWT_EXPIRATION_TIME:  ${{ secrets.JWT_EXPIRATION_TIME }}
         with:
-          host:  ${{ secrets.EC2_HOST }}
+          host:     ${{ secrets.EC2_HOST }}
           username: ubuntu
-          key:   ${{ secrets.EC2_SSH_KEY }}
-          port:  22
-          envs: |
-            AWS_REGION=${{ secrets.AWS_REGION }}
-            ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
-            ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-            IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-
-            RDS_ENDPOINT=${{ secrets.RDS_ENDPOINT }}
-            RDS_PORT=${{ secrets.RDS_PORT }}
-            RDS_DATABASE=${{ secrets.RDS_DATABASE }}
-            RDS_USERNAME=${{ secrets.RDS_USERNAME }}
-            RDS_PASSWORD=${{ secrets.RDS_PASSWORD }}
-
-            ELASTICACHE_ENDPOINT=${{ secrets.ELASTICACHE_ENDPOINT }}
-            ELASTICACHE_PORT=${{ secrets.ELASTICACHE_PORT }}
-
-            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            JWT_EXPIRATION_TIME=${{ secrets.JWT_EXPIRATION_TIME }}
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          port:     22
           script: |
             set -euo pipefail
             cd /home/ubuntu/app/scripts
             chmod +x deploy.sh
+
             ./deploy.sh \
               "$AWS_REGION" \
               "$ECR_REGISTRY" \
