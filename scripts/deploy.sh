@@ -27,10 +27,8 @@ aws ecr get-login-password --region "${AWS_REGION}" \
   | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
 # 2) Change to app directory
-echo "📁 Changing directory to $APP_DIR"
 cd "$APP_DIR"
 
-# 3) Determine current and target for blue-green
 echo "🔍 Detecting active instance"
 if docker ps -q -f name=backend-blue | grep -q .; then
   CURRENT=backend-blue
@@ -44,7 +42,8 @@ fi
 
 echo "⏳ Switching traffic: $CURRENT → $TARGET on port $PORT"
 
-# 4) Create .env for docker-compose
+# 3) Create .env for docker-compose
+echo "📝 Writing .env for docker-compose"
 cat > .env <<EOF
 RDS_ENDPOINT=${RDS_ENDPOINT}
 RDS_PORT=${RDS_PORT}
@@ -60,7 +59,8 @@ ECR_REPOSITORY=${ECR_REPOSITORY}
 IMAGE_TAG=${IMAGE_TAG}
 EOF
 
-echo "🚀 Pulling image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+# 4) Pull new image
+echo "🚀 Pulling image ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 docker pull "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
 # 5) Stop and remove current container if exists
@@ -70,16 +70,19 @@ if docker ps -q -f name="$CURRENT" | grep -q .; then
   docker-compose -f docker-compose-prod.yml rm -f "$CURRENT"
 fi
 
-# 6) Start new target container
+# 6) Start target container
 echo "▶️ Starting $TARGET"
 docker-compose -f docker-compose-prod.yml --env-file .env up -d --no-deps "$TARGET"
 
-# 7) Update Nginx proxy_pass inside container
-echo "🔁 Updating Nginx proxy_pass to http://${TARGET}:${PORT}"
+# 7) Clean up old service-env include and update default proxy_pass
+echo "🗑️ Removing old service-env include if present"
+docker exec nginx-proxy sh -c "rm -f /etc/nginx/conf.d/service-env.inc || true"
+echo "🔁 Updating proxy_pass in default.conf"
 docker exec nginx-proxy sh -c \
-  "sed -i 's|proxy_pass http://[^;]*;|proxy_pass http://${TARGET}:${PORT};|' /etc/nginx/conf.d/*.conf"
+  "sed -i 's|proxy_pass http://[^;]*;|proxy_pass http://${TARGET}:${PORT};|' /etc/nginx/conf.d/default.conf"
 
+# 8) Reload Nginx
 echo "🔄 Reloading Nginx"
 docker exec nginx-proxy nginx -s reload
 
-echo "✅ Deployed $TARGET and reloaded Nginx successfully"
+echo "✅ Deployed $TARGET on port $PORT and reloaded Nginx successfully"
