@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -98,6 +99,7 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests(authz -> authz
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(WhiteList.DOCS.getPatterns()).permitAll()
                         .requestMatchers(WhiteList.AUTH.getPatterns()).permitAll()
                         .requestMatchers(WhiteList.CHECKER.getPatterns()).permitAll()

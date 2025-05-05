@@ -57,7 +57,7 @@ public class MemberController {
                     )
             )
     })
-    @PostMapping
+    @PostMapping("/join")
     public ResponseEntity<MemberCreateResponse> createMember(
             @RequestBody @Valid MemberCreateRequest request
     ) {

@@ -5,12 +5,12 @@ import org.springframework.util.AntPathMatcher;
 
 import java.util.Arrays;
 
+@Getter
 public enum WhiteList {
     DOCS("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/docs"),
     CHECKER("/test/health-check"),
-    AUTH("/api/members", "/api/join", "/auth/login/**");
+    AUTH("/api/members/join", "/auth/login/**");
 
-    @Getter
     private final String[] patterns;
     private static final AntPathMatcher pathMatcher = new AntPathMatcher();
 
