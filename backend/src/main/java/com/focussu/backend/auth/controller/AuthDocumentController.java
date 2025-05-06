@@ -74,8 +74,8 @@ public class AuthDocumentController {
                                     name = "요청 예시",
                                     value = """
                                             {
-                                              "email": "user@example.com",
-                                              "password": "password123"
+                                              "email": "test@gmail.com",
+                                              "password": "testpassword"
                                             }
                                             """
                             )

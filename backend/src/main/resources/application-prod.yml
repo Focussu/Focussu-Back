@@ -24,6 +24,9 @@ spring:
     redis:
       port: ${ELASTICACHE_PORT}
       host: ${ELASTICACHE_ENDPOINT}
+      ssl:
+        enabled: true
+
 
 springdoc:
   default-produces-media-type: application/json
