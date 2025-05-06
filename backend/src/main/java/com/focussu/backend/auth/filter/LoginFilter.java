@@ -69,16 +69,19 @@ public class LoginFilter extends UsernamePasswordAuthenticationFilter {
         // 1. 인증 성공 후 사용자 정보 가져오기
         String username = auth.getName();
         UserDetails user = userDetailsService.loadUserByUsername(username);
+        log.info("[LOGIN FILTER] {} 로그인 성공..", username);
 
         // 2. 새로운 JWT 토큰 생성
         String newJwt = jwtTokenUtil.generateToken(user);
+        log.info("[LOGIN FILTER] {} 토큰 생성 성공..", username);
 
         // 3. (추가) Redis에서 해당 사용자의 기존 토큰 삭제
         tokenService.removeTokenByUsername(user.getUsername());
+        log.info("[LOGIN FILTER] {} 기존 토큰 삭제..", username);
 
         // 4. 새로운 토큰을 Redis에 저장
         tokenService.saveToken(newJwt, user.getUsername());
-        log.info("[LOGIN FILTER] Save {} Token..", user.getUsername());
+        log.info("[LOGIN FILTER] {} 새 토큰 저장..", user.getUsername());
 
         // 5. 응답 설정
         res.setCharacterEncoding("UTF-8");
