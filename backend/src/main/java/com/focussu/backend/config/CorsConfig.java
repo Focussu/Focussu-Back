@@ -14,11 +14,10 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-//        List.of(
-//                "http://localhost:3000",
-//                "https://focussu-client.vercel.app"
-//        )
+        config.setAllowedOriginPatterns(List.of(
+                "https://focussu-api.com",
+                "https://focussu-client.vercel.app"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -27,4 +26,5 @@ public class CorsConfig {
         source.registerCorsConfiguration("/**", config);
         return source;
     }
+
 }

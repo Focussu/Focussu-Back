@@ -1,21 +1,28 @@
 package com.focussu.backend.signalling;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import lombok.AllArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class SignalingMessage {
-    private String type;        // "join"|"leave"|"offer"|"answer"|"candidate"
-    private String roomId;      // ex: "room-1234"
-    private String to;          // 1:1용 수신자 userId (필요 시)
-    private JsonNode payload;
+    private MessageType type;
+    private String roomId;
+    private String to;
+    private Object payload;
 
-    public SignalingMessage(String type, String roomId, JsonNode payload) {
-        this(type, roomId, null, payload);
+    @JsonCreator
+    public SignalingMessage(
+            @JsonProperty("type") MessageType type,
+            @JsonProperty("roomId") String roomId,
+            @JsonProperty("to") String to,
+            @JsonProperty("payload") Object payload
+    ) {
+        this.type = type;
+        this.roomId = roomId;
+        this.to = to;
+        this.payload = payload;
     }
-    // getters/setters...
 }

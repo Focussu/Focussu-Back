@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.focussu.backend.signalling.MessageType.ERROR;
+
 @Slf4j
 public class SignalingHandler extends TextWebSocketHandler {
     // 사용자ID → WebSocketSession 맵
@@ -38,7 +40,7 @@ public class SignalingHandler extends TextWebSocketHandler {
         log.info("[Signaling] [{}] {} ▶ {}", roomId, from, in.getType());
 
         switch (in.getType()) {
-            case "join":
+            case JOIN:
                 rooms.computeIfAbsent(roomId, r -> ConcurrentHashMap.newKeySet()).add(from);
 
                 // (1) 기존 유저 목록 전송
@@ -52,31 +54,27 @@ public class SignalingHandler extends TextWebSocketHandler {
                 ObjectNode joinedPayload = mapper.createObjectNode();
                 joinedPayload.set("peers", peerArray);
                 session.sendMessage(new TextMessage(mapper.writeValueAsString(
-                        new SignalingMessage("joined", roomId, null, joinedPayload)
+                        new SignalingMessage(MessageType.JOINED, roomId, null, joinedPayload)
                 )));
 
                 // (2) 기존 유저들에게 new-peer 알리기
                 ObjectNode joinPayload = mapper.createObjectNode().put("from", from);
-                SignalingMessage newPeerMsg = new SignalingMessage("new-peer", roomId, null, joinPayload);
+                SignalingMessage newPeerMsg = new SignalingMessage(MessageType.NEW_PEER, roomId, null, joinPayload);
                 broadcast(roomId, newPeerMsg, from);
                 break;
 
-
-            case "leave":
-                // (1) 방 탈퇴
+            case LEAVE:
                 Set<String> members = rooms.getOrDefault(roomId, Collections.emptySet());
                 members.remove(from);
-                // (2) peer-left 방송
                 ObjectNode leavePayload = mapper.createObjectNode().put("from", from);
-                SignalingMessage leftMsg = new SignalingMessage("peer-left", roomId, null, leavePayload);
+                SignalingMessage leftMsg = new SignalingMessage(MessageType.PEER_LEFT, roomId, null, leavePayload);
                 broadcast(roomId, leftMsg, from);
                 break;
 
-            case "offer":
-            case "answer":
-            case "candidate":
-            case "ping":
-                // 1:1 대상 있으면 sendTo, 없으면 룸 브로드캐스트
+            case OFFER:
+            case ANSWER:
+            case CANDIDATE:
+            case PING:
                 if (in.getTo() != null) {
                     sendTo(roomId, in.getTo(), from, in);
                 } else {
@@ -88,6 +86,7 @@ public class SignalingHandler extends TextWebSocketHandler {
                 log.warn("[Signaling] Unknown message type: {}", in.getType());
         }
     }
+
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
@@ -137,7 +136,7 @@ public class SignalingHandler extends TextWebSocketHandler {
             if (senderSession != null && senderSession.isOpen()) {
                 ObjectNode errorPayload = mapper.createObjectNode().put("message", "target not available");
                 senderSession.sendMessage(new TextMessage(mapper.writeValueAsString(
-                        new SignalingMessage("error", roomId, to, errorPayload)
+                        new SignalingMessage(ERROR, roomId, to, errorPayload)
                 )));
             }
         }
