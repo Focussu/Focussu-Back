@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SignalingMessage {
     private MessageType type;
+
     private String roomId;
     private String to;
     private Object payload;
