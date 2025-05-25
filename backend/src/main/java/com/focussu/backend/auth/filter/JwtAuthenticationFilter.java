@@ -29,6 +29,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenUtil jwtTokenUtil;
     private final TokenService tokenService;
 
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // 1) WebSocket 핸드쉐이크는 GET + Upgrade:websocket
+
+        // 2) 이 외에도 필요하다면 특정 경로를 추가로 제외할 수 있습니다.
+        return "GET".equalsIgnoreCase(request.getMethod()) &&
+                "websocket".equalsIgnoreCase(request.getHeader("Upgrade")) &&
+                request.getRequestURI().equals("/ws/signaling");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest req,
