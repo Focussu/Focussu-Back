@@ -82,4 +82,15 @@ public class JwtTokenUtil {
         final String username = getUsernameFromToken(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
+
+    public boolean validateToken(String token) {
+        try {
+            // 서명 검증 및 Claims 파싱
+            getAllClaimsFromToken(token);
+            // 만료 여부 검사
+            return !isTokenExpired(token);
+        } catch (AuthException e) {
+            return false;
+        }
+    }
 }

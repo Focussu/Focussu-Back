@@ -103,6 +103,7 @@ public class SecurityConfig {
                         .requestMatchers(WhiteList.DOCS.getPatterns()).permitAll()
                         .requestMatchers(WhiteList.AUTH.getPatterns()).permitAll()
                         .requestMatchers(WhiteList.CHECKER.getPatterns()).permitAll()
+                        .requestMatchers("/ws/signaling").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(authExceptionFilter, UsernamePasswordAuthenticationFilter.class) // 예외 처리
