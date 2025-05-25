@@ -1,9 +1,8 @@
 package com.focussu.backend.signalling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -40,13 +39,28 @@ public class SignalingHandler extends TextWebSocketHandler {
 
         switch (in.getType()) {
             case "join":
-                // (1) 방 가입
                 rooms.computeIfAbsent(roomId, r -> ConcurrentHashMap.newKeySet()).add(from);
-                // (2) 기존 멤버에게 new-peer 브로드캐스트
+
+                // (1) 기존 유저 목록 전송
+                Set<String> currentPeers = rooms.get(roomId);
+                ArrayNode peerArray = mapper.createArrayNode();
+                for (String peer : currentPeers) {
+                    if (!peer.equals(from)) {
+                        peerArray.add(peer);
+                    }
+                }
+                ObjectNode joinedPayload = mapper.createObjectNode();
+                joinedPayload.set("peers", peerArray);
+                session.sendMessage(new TextMessage(mapper.writeValueAsString(
+                        new SignalingMessage("joined", roomId, null, joinedPayload)
+                )));
+
+                // (2) 기존 유저들에게 new-peer 알리기
                 ObjectNode joinPayload = mapper.createObjectNode().put("from", from);
                 SignalingMessage newPeerMsg = new SignalingMessage("new-peer", roomId, null, joinPayload);
                 broadcast(roomId, newPeerMsg, from);
                 break;
+
 
             case "leave":
                 // (1) 방 탈퇴
@@ -118,6 +132,15 @@ public class SignalingHandler extends TextWebSocketHandler {
             log.info("[Signaling] SEND to {} in room {}: {}", to, roomId, msg.getType());
         } else {
             log.warn("[Signaling] Cannot send to {} (not in room or closed)", to);
+            // ⬇️ from 유저에게 error 메시지 전달
+            WebSocketSession senderSession = sessions.get(from);
+            if (senderSession != null && senderSession.isOpen()) {
+                ObjectNode errorPayload = mapper.createObjectNode().put("message", "target not available");
+                senderSession.sendMessage(new TextMessage(mapper.writeValueAsString(
+                        new SignalingMessage("error", roomId, to, errorPayload)
+                )));
+            }
         }
     }
+
 }

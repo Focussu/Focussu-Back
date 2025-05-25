@@ -14,7 +14,7 @@ public class StudyRoomQueryService {
 
     public StudyRoomCreateResponse getStudyRoom(Long id) {
         StudyRoom studyRoom = studyRoomRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디룸입니다."));
         return StudyRoomCreateResponse.from(studyRoom);
     }
 }
