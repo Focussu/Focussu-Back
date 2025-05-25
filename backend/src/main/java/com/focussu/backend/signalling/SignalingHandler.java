@@ -1,5 +1,6 @@
 package com.focussu.backend.signalling;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -103,7 +104,10 @@ public class SignalingHandler extends TextWebSocketHandler {
         if (msg.getPayload() == null) {
             msg.setPayload(mapper.createObjectNode());
         }
-        ((ObjectNode) msg.getPayload()).put("from", sender);
+
+        JsonNode payloadNode = mapper.convertValue(msg.getPayload(), JsonNode.class);
+        ((ObjectNode) payloadNode).put("from", sender);
+        msg.setPayload(payloadNode);
 
         for (String to : rooms.getOrDefault(roomId, Collections.emptySet())) {
             if (!to.equals(sender)) {
@@ -116,6 +120,7 @@ public class SignalingHandler extends TextWebSocketHandler {
         log.info("[Signaling] BROADCAST to room {}: {}", roomId, msg.getType());
     }
 
+
     /**
      * 룸 내 특정 유저에게 전송
      */
@@ -123,7 +128,10 @@ public class SignalingHandler extends TextWebSocketHandler {
         if (msg.getPayload() == null) {
             msg.setPayload(mapper.createObjectNode());
         }
-        ((ObjectNode) msg.getPayload()).put("from", from);
+
+        JsonNode payloadNode = mapper.convertValue(msg.getPayload(), JsonNode.class);
+        ((ObjectNode) payloadNode).put("from", from);
+        msg.setPayload(payloadNode);
 
         WebSocketSession ws = sessions.get(to);
         if (ws != null && ws.isOpen() && rooms.getOrDefault(roomId, Collections.emptySet()).contains(to)) {
@@ -131,7 +139,6 @@ public class SignalingHandler extends TextWebSocketHandler {
             log.info("[Signaling] SEND to {} in room {}: {}", to, roomId, msg.getType());
         } else {
             log.warn("[Signaling] Cannot send to {} (not in room or closed)", to);
-            // ⬇️ from 유저에게 error 메시지 전달
             WebSocketSession senderSession = sessions.get(from);
             if (senderSession != null && senderSession.isOpen()) {
                 ObjectNode errorPayload = mapper.createObjectNode().put("message", "target not available");
@@ -141,5 +148,6 @@ public class SignalingHandler extends TextWebSocketHandler {
             }
         }
     }
+
 
 }
