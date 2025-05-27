@@ -1,5 +1,6 @@
 package com.focussu.backend.auth.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -9,6 +10,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Service
 public class TokenService {
 
@@ -51,7 +53,8 @@ public class TokenService {
      * @param token 찾고자 하는 JWT 토큰
      * @return Optional<String> 형태로 사용자 이름을 반환 (존재하지 않으면 Optional.empty())
      */
-    public Optional<String> getUsernameByToken(String token) {
+    public Optional<String>
+    getUsernameByToken(String token) {
         ValueOperations<String, String> valueOps = redisTemplate.opsForValue();
         // "TOKEN_*" 패턴의 키 조회 (성능 주의)
         Set<String> keys = redisTemplate.keys(TOKEN_PREFIX + "*");
@@ -59,22 +62,16 @@ public class TokenService {
         if (keys != null) {
             for (String key : keys) {
                 String storedToken = valueOps.get(key);
+                log.info("[TOKEN SERVICE] 토큰 순회.. {}", storedToken);
                 if (token.equals(storedToken)) {
                     // 키에서 접두사 제거 후 username 반환
+                    log.info("[TOKEN SERVICE] 토큰 발견..");
                     return Optional.of(key.substring(TOKEN_PREFIX.length()));
                 }
             }
         }
+        log.info("[TOKEN SERVICE] Redis에서 토큰 찾기 실패..");
         return Optional.empty(); // 토큰을 찾지 못함
-    }
-
-    /**
-     * 주어진 JWT 토큰을 Redis에서 찾아 삭제합니다.
-     *
-     * @param token 삭제할 JWT 토큰
-     */
-    public void removeToken(String token) {
-        getUsernameByToken(token).ifPresent(this::removeTokenByUsername);
     }
 
     /**
