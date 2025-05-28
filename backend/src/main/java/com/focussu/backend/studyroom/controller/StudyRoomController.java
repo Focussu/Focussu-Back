@@ -2,6 +2,7 @@ package com.focussu.backend.studyroom.controller;
 
 import com.focussu.backend.studyroom.dto.StudyRoomCreateRequest;
 import com.focussu.backend.studyroom.dto.StudyRoomCreateResponse;
+import com.focussu.backend.studyroom.dto.StudyRoomJoinResponse;
 import com.focussu.backend.studyroom.service.StudyRoomCommandService;
 import com.focussu.backend.studyroom.service.StudyRoomQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,5 +54,16 @@ public class StudyRoomController {
     @GetMapping("/{id}")
     public ResponseEntity<StudyRoomCreateResponse> getStudyRoom(@PathVariable Long id) {
         return ResponseEntity.ok(queryService.getStudyRoom(id));
+    }
+
+    @Operation(summary = "스터디룸 참가", description = "ID에 해당하는 스터디룸에 참가합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "참가 성공"),
+            @ApiResponse(responseCode = "404", description = "스터디룸을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    @PostMapping("/join/{id}")
+    public ResponseEntity<StudyRoomJoinResponse> joinStudyRoom(@PathVariable Long id) {
+        return ResponseEntity.ok(commandService.joinStudyRoom(id));
     }
 }

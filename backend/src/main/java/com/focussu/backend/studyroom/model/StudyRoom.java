@@ -1,10 +1,12 @@
 package com.focussu.backend.studyroom.model;
 
 import com.focussu.backend.common.BaseEntity;
+import com.focussu.backend.member.model.Member;
 import com.focussu.backend.studyparticipation.model.StudyParticipation;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -39,4 +41,13 @@ public class StudyRoom extends BaseEntity {
 
     @OneToMany(mappedBy = "studyRoom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudyParticipation> studyParticipations;
+
+    @ManyToMany
+    @JoinTable(
+            name = "studyroom_participants",
+            joinColumns = @JoinColumn(name = "studyroom_id"),
+            inverseJoinColumns = @JoinColumn(name = "member_id")
+    )
+    private List<Member> participants = new ArrayList<>();
+
 }

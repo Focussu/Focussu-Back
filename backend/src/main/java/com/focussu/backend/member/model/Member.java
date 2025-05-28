@@ -2,9 +2,11 @@ package com.focussu.backend.member.model;
 
 import com.focussu.backend.common.BaseEntity;
 import com.focussu.backend.studyparticipation.model.StudyParticipation;
+import com.focussu.backend.studyroom.model.StudyRoom;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -42,4 +44,7 @@ public class Member extends BaseEntity {
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudyParticipation> studyParticipations;
+
+    @ManyToMany(mappedBy = "participants")
+    private List<StudyRoom> joinedRooms = new ArrayList<>();
 }
