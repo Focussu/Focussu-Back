@@ -34,7 +34,8 @@ public class StudyRoom extends BaseEntity {
     private String profileImageUrl;
 
     @Column(name = "studyroom_is_active")
-    private Boolean isActive;
+    @Builder.Default
+    private Boolean isActive = true;
 
     @OneToMany(mappedBy = "studyRoom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudyParticipation> studyParticipations;
