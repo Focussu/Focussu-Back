@@ -15,17 +15,22 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 public class SignalingHandler extends TextWebSocketHandler {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> rooms = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Map<String, ExecutorService> executors = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String userId = (String) session.getAttributes().get("userId");
         sessions.put(userId, session);
+        // single-threaded executor per session to serialize sends
+        executors.put(userId, Executors.newSingleThreadExecutor());
         log.info("[Signaling] CONNECTED: {}", userId);
     }
 
@@ -65,6 +70,10 @@ public class SignalingHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = (String) session.getAttributes().get("userId");
         sessions.remove(userId);
+        // shutdown executor
+        ExecutorService exec = executors.remove(userId);
+        if (exec != null) exec.shutdownNow();
+
         rooms.values().forEach(m -> m.remove(userId));
         log.info("[Signaling] DISCONNECTED: {}", userId);
     }
@@ -99,26 +108,39 @@ public class SignalingHandler extends TextWebSocketHandler {
                                  MessageType type,
                                  String roomId,
                                  Object rawPayload,
-                                 String from) throws IOException {
+                                 String from) {
         WebSocketSession session = sessions.get(targetId);
         JsonNode payloadNode = mapper.valueToTree(rawPayload);
         ((ObjectNode) payloadNode).put("from", from);
 
         SignalingMessage msg = new SignalingMessage(type, roomId, targetId, payloadNode);
         if (session != null && session.isOpen()) {
-            // 세션 별 중복 전송 방지
-            synchronized (session) {
-                session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+            ExecutorService exec = executors.get(targetId);
+            if (exec != null) {
+                exec.submit(() -> {
+                    try {
+                        session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+                        log.info("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
+                    } catch (IOException e) {
+                        log.error("[Signaling] Failed to send message to {}", targetId, e);
+                    }
+                });
             }
-            log.info("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
         } else {
             log.warn("[Signaling] Cannot send to {} (closed or absent)", targetId);
             WebSocketSession sender = sessions.get(from);
             if (sender != null && sender.isOpen()) {
-                JsonNode errorNode = createPayload("message", "target not available");
+                ObjectNode errorNode = createPayload("message", "target not available");
                 SignalingMessage errorMsg = new SignalingMessage(MessageType.ERROR, roomId, targetId, errorNode);
-                synchronized (sender) {
-                    sender.sendMessage(new TextMessage(mapper.writeValueAsString(errorMsg)));
+                ExecutorService exec = executors.get(from);
+                if (exec != null) {
+                    exec.submit(() -> {
+                        try {
+                            sender.sendMessage(new TextMessage(mapper.writeValueAsString(errorMsg)));
+                        } catch (IOException ex) {
+                            log.error("[Signaling] Failed to send error to {}", from, ex);
+                        }
+                    });
                 }
             }
         }
@@ -127,7 +149,7 @@ public class SignalingHandler extends TextWebSocketHandler {
     private void broadcastToRoom(String roomId,
                                  MessageType type,
                                  Object rawPayload,
-                                 String from) throws IOException {
+                                 String from) {
         JsonNode basePayload = mapper.valueToTree(rawPayload);
         for (String peer : rooms.getOrDefault(roomId, Collections.emptySet())) {
             if (!peer.equals(from)) {
