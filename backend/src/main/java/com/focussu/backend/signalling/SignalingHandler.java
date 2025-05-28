@@ -69,10 +69,6 @@ public class SignalingHandler extends TextWebSocketHandler {
         log.info("[Signaling] DISCONNECTED: {}", userId);
     }
 
-    /**
-     * 가입 처리: 신규 사용자에게 JOINED(peers 목록) 전송,
-     * 기존 사용자에게 NEW_PEER(from 신규) 전송
-     */
     private void handleJoin(String userId, String roomId) throws IOException {
         Set<String> participants = rooms.computeIfAbsent(roomId, r -> ConcurrentHashMap.newKeySet());
         // (1) 신규 사용자에게 기존 참여자 목록 전송
@@ -99,9 +95,6 @@ public class SignalingHandler extends TextWebSocketHandler {
         return mapper.createObjectNode().put(key, value);
     }
 
-    /**
-     * 대상 사용자에게 메시지 전송
-     */
     private void sendEventToUser(String targetId,
                                  MessageType type,
                                  String roomId,
@@ -113,7 +106,10 @@ public class SignalingHandler extends TextWebSocketHandler {
 
         SignalingMessage msg = new SignalingMessage(type, roomId, targetId, payloadNode);
         if (session != null && session.isOpen()) {
-            session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+            // 세션 별 중복 전송 방지
+            synchronized (session) {
+                session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+            }
             log.info("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
         } else {
             log.warn("[Signaling] Cannot send to {} (closed or absent)", targetId);
@@ -121,14 +117,13 @@ public class SignalingHandler extends TextWebSocketHandler {
             if (sender != null && sender.isOpen()) {
                 JsonNode errorNode = createPayload("message", "target not available");
                 SignalingMessage errorMsg = new SignalingMessage(MessageType.ERROR, roomId, targetId, errorNode);
-                sender.sendMessage(new TextMessage(mapper.writeValueAsString(errorMsg)));
+                synchronized (sender) {
+                    sender.sendMessage(new TextMessage(mapper.writeValueAsString(errorMsg)));
+                }
             }
         }
     }
 
-    /**
-     * 방 전체에 브로드캐스트 (보낸 사람 제외)
-     */
     private void broadcastToRoom(String roomId,
                                  MessageType type,
                                  Object rawPayload,
