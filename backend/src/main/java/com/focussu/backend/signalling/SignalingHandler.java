@@ -2,7 +2,6 @@ package com.focussu.backend.signalling;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.CloseStatus;
@@ -16,13 +15,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.focussu.backend.signalling.MessageType.ERROR;
-
 @Slf4j
 public class SignalingHandler extends TextWebSocketHandler {
-    // 사용자ID → WebSocketSession 맵
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    // 방ID → 사용자ID 세트
     private final Map<String, Set<String>> rooms = new ConcurrentHashMap<>();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -42,34 +37,11 @@ public class SignalingHandler extends TextWebSocketHandler {
 
         switch (in.getType()) {
             case JOIN:
-                rooms.computeIfAbsent(roomId, r -> ConcurrentHashMap.newKeySet()).add(from);
-
-                // (1) 기존 유저 목록 전송
-                Set<String> currentPeers = rooms.get(roomId);
-                ArrayNode peerArray = mapper.createArrayNode();
-                for (String peer : currentPeers) {
-                    if (!peer.equals(from)) {
-                        peerArray.add(peer);
-                    }
-                }
-                ObjectNode joinedPayload = mapper.createObjectNode();
-                joinedPayload.set("peers", peerArray);
-                session.sendMessage(new TextMessage(mapper.writeValueAsString(
-                        new SignalingMessage(MessageType.JOINED, roomId, null, joinedPayload)
-                )));
-
-                // (2) 기존 유저들에게 new-peer 알리기
-                ObjectNode joinPayload = mapper.createObjectNode().put("from", from);
-                SignalingMessage newPeerMsg = new SignalingMessage(MessageType.NEW_PEER, roomId, null, joinPayload);
-                broadcast(roomId, newPeerMsg, from);
+                handleJoin(from, roomId);
                 break;
 
             case LEAVE:
-                Set<String> members = rooms.getOrDefault(roomId, Collections.emptySet());
-                members.remove(from);
-                ObjectNode leavePayload = mapper.createObjectNode().put("from", from);
-                SignalingMessage leftMsg = new SignalingMessage(MessageType.PEER_LEFT, roomId, null, leavePayload);
-                broadcast(roomId, leftMsg, from);
+                handleLeave(from, roomId);
                 break;
 
             case OFFER:
@@ -77,9 +49,9 @@ public class SignalingHandler extends TextWebSocketHandler {
             case CANDIDATE:
             case PING:
                 if (in.getTo() != null) {
-                    sendTo(roomId, in.getTo(), from, in);
+                    sendEventToUser(in.getTo(), in.getType(), roomId, in.getPayload(), from);
                 } else {
-                    broadcast(roomId, in, from);
+                    broadcastToRoom(roomId, in.getType(), in.getPayload(), from);
                 }
                 break;
 
@@ -87,7 +59,6 @@ public class SignalingHandler extends TextWebSocketHandler {
                 log.warn("[Signaling] Unknown message type: {}", in.getType());
         }
     }
-
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
@@ -97,57 +68,70 @@ public class SignalingHandler extends TextWebSocketHandler {
         log.info("[Signaling] DISCONNECTED: {}", userId);
     }
 
-    /**
-     * 룸 내 전체 브로드캐스트 (sender 제외)
-     */
-    private void broadcast(String roomId, SignalingMessage msg, String sender) throws IOException {
-        if (msg.getPayload() == null) {
-            msg.setPayload(mapper.createObjectNode());
+    private void handleJoin(String userId, String roomId) throws IOException {
+        Set<String> participants = rooms.computeIfAbsent(roomId, r -> ConcurrentHashMap.newKeySet());
+        // 1) 신규 사용자에게 기존 참여자 알림
+        for (String peer : participants) {
+            sendEventToUser(userId, MessageType.NEW_PEER, roomId, createPayload("from", peer), peer);
         }
-
-        JsonNode payloadNode = mapper.convertValue(msg.getPayload(), JsonNode.class);
-        ((ObjectNode) payloadNode).put("from", sender);
-        msg.setPayload(payloadNode);
-
-        for (String to : rooms.getOrDefault(roomId, Collections.emptySet())) {
-            if (!to.equals(sender)) {
-                WebSocketSession ws = sessions.get(to);
-                if (ws != null && ws.isOpen()) {
-                    ws.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
-                }
-            }
-        }
-        log.info("[Signaling] BROADCAST to room {}: {}", roomId, msg.getType());
+        // 2) 기존 참여자에게 신규 사용자 알림
+        broadcastToRoom(roomId, MessageType.NEW_PEER, createPayload("from", userId), userId);
+        participants.add(userId);
     }
 
+    private void handleLeave(String userId, String roomId) throws IOException {
+        Set<String> participants = rooms.getOrDefault(roomId, Collections.emptySet());
+        participants.remove(userId);
+        broadcastToRoom(roomId, MessageType.PEER_LEFT, createPayload("from", userId), userId);
+    }
+
+    private ObjectNode createPayload(String key, String value) {
+        return mapper.createObjectNode().put(key, value);
+    }
 
     /**
-     * 룸 내 특정 유저에게 전송
+     * targetId: 받는 사람
+     * rawPayload: Object 타입(예: JsonNode, POJO 등)
      */
-    private void sendTo(String roomId, String to, String from, SignalingMessage msg) throws IOException {
-        if (msg.getPayload() == null) {
-            msg.setPayload(mapper.createObjectNode());
-        }
-
-        JsonNode payloadNode = mapper.convertValue(msg.getPayload(), JsonNode.class);
+    private void sendEventToUser(String targetId,
+                                 MessageType type,
+                                 String roomId,
+                                 Object rawPayload,
+                                 String from) throws IOException {
+        WebSocketSession session = sessions.get(targetId);
+        // payload를 JsonNode로 변환
+        JsonNode payloadNode = mapper.valueToTree(rawPayload);
         ((ObjectNode) payloadNode).put("from", from);
-        msg.setPayload(payloadNode);
 
-        WebSocketSession ws = sessions.get(to);
-        if (ws != null && ws.isOpen() && rooms.getOrDefault(roomId, Collections.emptySet()).contains(to)) {
-            ws.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
-            log.info("[Signaling] SEND to {} in room {}: {}", to, roomId, msg.getType());
+        SignalingMessage msg = new SignalingMessage(type, roomId, targetId, payloadNode);
+        if (session != null && session.isOpen()) {
+            session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
+            log.info("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
         } else {
-            log.warn("[Signaling] Cannot send to {} (not in room or closed)", to);
+            log.warn("[Signaling] Cannot send to {} (not in room or closed)", targetId);
             WebSocketSession senderSession = sessions.get(from);
             if (senderSession != null && senderSession.isOpen()) {
-                ObjectNode errorPayload = mapper.createObjectNode().put("message", "target not available");
-                senderSession.sendMessage(new TextMessage(mapper.writeValueAsString(
-                        new SignalingMessage(ERROR, roomId, to, errorPayload)
-                )));
+                JsonNode errorNode = createPayload("message", "target not available");
+                SignalingMessage errorMsg = new SignalingMessage(MessageType.ERROR, roomId, targetId, errorNode);
+                senderSession.sendMessage(new TextMessage(mapper.writeValueAsString(errorMsg)));
             }
         }
     }
 
-
+    /**
+     * roomId 방의 전체 브로드캐스트 (sender 제외)
+     * rawPayload: Object 타입
+     */
+    private void broadcastToRoom(String roomId,
+                                 MessageType type,
+                                 Object rawPayload,
+                                 String from) throws IOException {
+        JsonNode basePayload = mapper.valueToTree(rawPayload);
+        for (String peer : rooms.getOrDefault(roomId, Collections.emptySet())) {
+            if (!peer.equals(from)) {
+                sendEventToUser(peer, type, roomId, basePayload, from);
+            }
+        }
+        log.info("[Signaling] BROADCAST to room {}: {}", roomId, type);
+    }
 }
