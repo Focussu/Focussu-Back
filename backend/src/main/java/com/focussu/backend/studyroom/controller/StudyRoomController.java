@@ -66,4 +66,15 @@ public class StudyRoomController {
     public ResponseEntity<StudyRoomJoinResponse> joinStudyRoom(@PathVariable Long id) {
         return ResponseEntity.ok(commandService.joinStudyRoom(id));
     }
+
+    @Operation(summary = "내가 참가한 스터디룸 조회", description = "내가 참가한 스터디룸을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "스터디룸을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
+    })
+    @GetMapping("/my")
+    public ResponseEntity<List<StudyRoomCreateResponse>> getMyStudyRooms() {
+        return ResponseEntity.ok(queryService.getMyStudyRooms());
+    }
 }

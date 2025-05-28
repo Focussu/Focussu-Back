@@ -17,6 +17,12 @@ public enum ErrorCode {
     AUTH_TOKEN_NOT_FOUND(401, "로그아웃된 토큰입니다."),
     AUTH_INVALID_LOGOUT_REQUEST(401, "잘못된 로그아웃 요청입니다."),
 
+    // StudyRoom 관련 에러
+    STUDYROOM_NOT_FOUND(404, "스터디룸을 찾을 수 없습니다."),
+    STUDYROOM_EXCEEDS_CAPACITY(400, "스터디룸 정원이 초과하였습니다."),
+    STUDYROOM_ALREADY_JOINED(400, "이미 참여한 스터디룸입니다."),
+
+
     // Member 관련 에러
     MEMBER_NOT_FOUND(404, "회원을 찾을 수 없습니다."),
     MEMBER_ALREADY_EXISTS(409, "이미 존재하는 이메일입니다.");
