@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/studyrooms")
@@ -20,6 +22,12 @@ public class StudyRoomController {
     @PostMapping
     public ResponseEntity<StudyRoomCreateResponse> createStudyRoom(@RequestBody StudyRoomCreateRequest request) {
         return ResponseEntity.ok(commandService.createStudyRoom(request));
+    }
+
+    // StudyRoom 전체 조회 API (GET /studyrooms)
+    @GetMapping
+    public ResponseEntity<List<StudyRoomCreateResponse>> getStudyRooms() {
+        return ResponseEntity.ok(queryService.getStudyRooms());
     }
 
     // StudyRoom 조회 API (GET /studyrooms/{id})

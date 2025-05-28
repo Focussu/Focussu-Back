@@ -6,6 +6,9 @@ import com.focussu.backend.studyroom.repository.StudyRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @RequiredArgsConstructor
 @Service
 public class StudyRoomQueryService {
@@ -16,5 +19,12 @@ public class StudyRoomQueryService {
         StudyRoom studyRoom = studyRoomRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디룸입니다."));
         return StudyRoomCreateResponse.from(studyRoom);
+    }
+
+    public List<StudyRoomCreateResponse> getStudyRooms() {
+        List<StudyRoom> studyRooms = studyRoomRepository.findAll();
+        return studyRooms.stream()
+                .map(StudyRoomCreateResponse::from)
+                .collect(Collectors.toList());
     }
 }
