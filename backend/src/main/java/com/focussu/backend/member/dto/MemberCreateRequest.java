@@ -18,7 +18,7 @@ public record MemberCreateRequest(
                 example = "test@gmail.com",
                 maxLength = 50
         )
-        @Pattern(regexp="^[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])*@[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])+[.][a-zA-Z]{2,3}$", message="이메일 주소 양식을 확인해주세요")
+        @Pattern(regexp = "^[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])*@[0-9a-zA-Z]([-_.]?[0-9a-zA-Z])+[.][a-zA-Z]{2,3}$", message = "이메일 주소 양식을 확인해주세요")
         String email,
 
         @Schema(
@@ -27,7 +27,12 @@ public record MemberCreateRequest(
                 minLength = 8,
                 maxLength = 20
         )
-        String password
+        String password,
+        @Schema(description = "회원 자기소개", example = "My name is seungmin")
+        String description,
+
+        @Schema(description = "회원 이미지", example = "https://sample.url/image")
+        String profileImageUrl
 
 ) {
     public Member toEntity(String compressedPassword) {
@@ -35,6 +40,8 @@ public record MemberCreateRequest(
                 .name(name)
                 .email(email)
                 .password(compressedPassword)
+                .description(description)
+                .profileImageUrl(profileImageUrl)
                 .build();
     }
 }

@@ -35,6 +35,11 @@ public class Member extends BaseEntity {
     @Column(name = "member_password", nullable = false)
     private String password;
 
+    // 자기소개
+    @Column(name = "member_description")
+    private String description;
+
+    // 회원 이미지 주소
     @Column(name = "member_profile_image_url")
     private String profileImageUrl;
 
