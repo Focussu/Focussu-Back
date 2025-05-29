@@ -6,14 +6,16 @@ public record StudyRoomCreateResponse(
         Long id,
         String name,
         String description,
-        Long maxCapacity
+        Long maxCapacity,
+        String profileImageUrl
 ) {
     public static StudyRoomCreateResponse from(StudyRoom studyRoom) {
         return new StudyRoomCreateResponse(
                 studyRoom.getId(),
                 studyRoom.getName(),
                 studyRoom.getDescription(),
-                studyRoom.getMaxCapacity()
+                studyRoom.getMaxCapacity(),
+                studyRoom.getProfileImageUrl()
         );
     }
 }
