@@ -6,7 +6,9 @@ import com.focussu.backend.studyparticipation.repository.StudyParticipationRepos
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -43,4 +45,12 @@ public class StudyParticipationQueryService {
         Double avg = repository.findAverageConcentration(memberId).orElse(0.0);
         return ConcentrationStatsResponse.from(memberId, null, null, avg);
     }
+
+    public StudyParticipationResponse buildInactiveSecondsResponse(Long memberId) {
+        Optional<LocalDateTime> lastExitTime = repository.findLatestEndTimeByMemberId(memberId);
+        LocalDateTime now = LocalDateTime.now();
+        long seconds = lastExitTime.map(exit -> Duration.between(exit, now).getSeconds()).orElse(0L);
+        return StudyParticipationResponse.ofTotal(memberId, seconds);
+    }
+
 }
