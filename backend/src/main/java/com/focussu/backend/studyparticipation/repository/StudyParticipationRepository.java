@@ -18,8 +18,6 @@ public interface StudyParticipationRepository extends JpaRepository<StudyPartici
     @Query(value = "SELECT SUM(TIMESTAMPDIFF(SECOND, sp.study_participation_start_time, sp.study_participation_end_time)) FROM study_participation sp WHERE sp.member_id = :memberId AND sp.study_participation_end_time IS NOT NULL", nativeQuery = true)
     Optional<Long> findTotalStudySecondsByMemberId(Long memberId);
 
-    List<StudyParticipation> findAllByMemberIdOrderByStartTimeDesc(Long memberId);
-
     @Query(value = "SELECT SUM(TIMESTAMPDIFF(SECOND, sp.study_participation_start_time, sp.study_participation_end_time)) FROM study_participation sp WHERE sp.member_id = :memberId AND sp.study_participation_start_time >= :start AND sp.study_participation_end_time <= :end", nativeQuery = true)
     Optional<Long> findTotalStudySecondsBetween(Long memberId, LocalDateTime start, LocalDateTime end);
 
