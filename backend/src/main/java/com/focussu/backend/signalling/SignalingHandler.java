@@ -1,4 +1,3 @@
-// SignalingHandler.java
 package com.focussu.backend.signalling;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,9 +19,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 @Slf4j
 @Component
@@ -35,6 +32,10 @@ public class SignalingHandler extends TextWebSocketHandler {
     private final ObjectMapper mapper = new ObjectMapper();
     private final StudyParticipationCommandService studyParticipationCommandService;
     private final MemberRepository memberRepository;
+
+    private final Map<String, Set<String>> recentCandidates = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService cleanupExecutor = Executors.newScheduledThreadPool(1);
+    private static final int CANDIDATE_CACHE_DURATION_MS = 5000;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -52,25 +53,44 @@ public class SignalingHandler extends TextWebSocketHandler {
         log.info("[Signaling] [{}] {} ▶ {}", roomId, from, in.getType());
 
         switch (in.getType()) {
-            case JOIN:
-                handleJoin(from, roomId);
-                break;
-            case LEAVE:
-                handleLeave(from, roomId);
-                break;
-            case OFFER:
-            case ANSWER:
-            case CANDIDATE:
-            case PING:
-                if (in.getTo() != null) {
-                    sendEventToUser(in.getTo(), in.getType(), roomId, in.getPayload(), from);
+            case JOIN -> handleJoin(from, roomId);
+            case LEAVE -> handleLeave(from, roomId);
+            case CANDIDATE -> {
+                String candidateStr = in.getPayload().toString();
+                if (!isDuplicateCandidate(from, candidateStr)) {
+                    routeSignalingMessage(in, from, roomId);
                 } else {
-                    broadcastToRoom(roomId, in.getType(), in.getPayload(), from);
+                    log.debug("[Signaling] Ignored duplicate CANDIDATE from {}", from);
                 }
-                break;
-            default:
-                log.warn("[Signaling] Unknown message type: {}", in.getType());
+            }
+            case OFFER, ANSWER, PING -> routeSignalingMessage(in, from, roomId);
+            default -> log.warn("[Signaling] Unknown message type: {}", in.getType());
         }
+    }
+
+    private void routeSignalingMessage(SignalingMessage in, String from, String roomId) {
+        if (in.getTo() != null) {
+            sendEventToUser(in.getTo(), in.getType(), roomId, in.getPayload(), from);
+        } else {
+            broadcastToRoom(roomId, in.getType(), in.getPayload(), from);
+        }
+    }
+
+    private boolean isDuplicateCandidate(String userId, String candidateJson) {
+        recentCandidates.putIfAbsent(userId, ConcurrentHashMap.newKeySet());
+        Set<String> cache = recentCandidates.get(userId);
+        if (cache.contains(candidateJson)) {
+            return true;
+        }
+        cache.add(candidateJson);
+
+        // 자동 삭제
+        cleanupExecutor.schedule(() -> {
+            Set<String> userCache = recentCandidates.get(userId);
+            if (userCache != null) userCache.remove(candidateJson);
+        }, CANDIDATE_CACHE_DURATION_MS, TimeUnit.MILLISECONDS);
+
+        return false;
     }
 
     @Override
@@ -142,7 +162,7 @@ public class SignalingHandler extends TextWebSocketHandler {
                 exec.submit(() -> {
                     try {
                         session.sendMessage(new TextMessage(mapper.writeValueAsString(msg)));
-                        log.info("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
+                        log.debug("[Signaling] SEND to {} in room {}: {}", targetId, roomId, type);
                     } catch (IOException e) {
                         log.error("[Signaling] Failed to send message to {}", targetId, e);
                     }
@@ -160,7 +180,7 @@ public class SignalingHandler extends TextWebSocketHandler {
                 sendEventToUser(peer, type, roomId, basePayload, from);
             }
         }
-        log.info("[Signaling] BROADCAST to room {}: {}", roomId, type);
+        log.debug("[Signaling] BROADCAST to room {}: {}", roomId, type);
     }
 
     private Long getMemberId(String userId) {
