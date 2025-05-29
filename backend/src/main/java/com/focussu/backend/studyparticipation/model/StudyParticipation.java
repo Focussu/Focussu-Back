@@ -24,10 +24,10 @@ public class StudyParticipation {
     @Column(name = "study_participation_start_time", nullable = false)
     private LocalDateTime startTime;
 
-    @Column(name = "study_participation_end_time", nullable = false)
+    @Column(name = "study_participation_end_time")
     private LocalDateTime endTime;
 
-    @Column(name = "study_participation_concentration_score", nullable = true)
+    @Column(name = "study_participation_concentration_score")
     private Double concentrationScore;
 
     @ManyToOne(fetch = FetchType.LAZY)

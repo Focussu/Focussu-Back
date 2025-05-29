@@ -1,30 +1,43 @@
 package com.focussu.backend.studyparticipation.service;
 
+import com.focussu.backend.member.model.Member;
+import com.focussu.backend.member.repository.MemberRepository;
+import com.focussu.backend.studyroom.model.StudyRoom;
+import com.focussu.backend.studyroom.repository.StudyRoomRepository;
+import com.focussu.backend.studyparticipation.model.StudyParticipation;
+import com.focussu.backend.studyparticipation.repository.StudyParticipationRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class StudyParticipationCommandService {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StudyParticipationRepository studyParticipationRepository;
+    private final MemberRepository memberRepository;
+    private final StudyRoomRepository studyRoomRepository;
 
-    public void addParticipant(Long roomId, String userId) {
-        String key = buildKey(roomId);
-        redisTemplate.opsForSet().add(key, userId);
-        log.info("✅ Redis addParticipant: key={}, userId={}", key, userId);
+    public void createParticipation(Long memberId, Long roomId) {
+        Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("Invalid memberId"));
+        StudyRoom studyRoom = studyRoomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Invalid studyRoomId"));
+
+        StudyParticipation participation = StudyParticipation.builder()
+                .member(member)
+                .studyRoom(studyRoom)
+                .startTime(LocalDateTime.now())
+                .build();
+
+        studyParticipationRepository.save(participation);
     }
 
-    public void removeParticipant(Long roomId, String userId) {
-        String key = buildKey(roomId);
-        redisTemplate.opsForSet().remove(key, userId);
-        log.info("❌ Redis removeParticipant: key={}, userId={}", key, userId);
-    }
+    public void endParticipation(Long memberId, Long roomId) {
+        StudyParticipation participation = studyParticipationRepository
+                .findTopByMemberIdAndStudyRoomIdAndEndTimeIsNullOrderByStartTimeDesc(memberId, roomId)
+                .orElseThrow(() -> new IllegalStateException("No ongoing participation found"));
 
-    private String buildKey(Long roomId) {
-        return "studyroom:participants:" + roomId;
+        participation.setEndTime(LocalDateTime.now());
+        studyParticipationRepository.save(participation);
     }
 }
