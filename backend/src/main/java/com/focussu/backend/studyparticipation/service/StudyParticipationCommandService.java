@@ -19,7 +19,7 @@ public class StudyParticipationCommandService {
     private final MemberRepository memberRepository;
     private final StudyRoomRepository studyRoomRepository;
 
-    public void createParticipation(Long memberId, Long roomId) {
+    public Long createParticipation(Long memberId, Long roomId) {
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new IllegalArgumentException("Invalid memberId"));
         StudyRoom studyRoom = studyRoomRepository.findById(roomId).orElseThrow(() -> new IllegalArgumentException("Invalid studyRoomId"));
 
@@ -29,7 +29,9 @@ public class StudyParticipationCommandService {
                 .startTime(LocalDateTime.now())
                 .build();
 
-        studyParticipationRepository.save(participation);
+        StudyParticipation save = studyParticipationRepository.save(participation);
+
+        return save.getId();
     }
 
     public void endParticipation(Long memberId, Long roomId) {

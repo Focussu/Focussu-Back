@@ -129,7 +129,15 @@ public class SignalingHandler extends TextWebSocketHandler {
         participants.add(userId);
 
         try {
-            studyParticipationCommandService.createParticipation(getMemberId(userId), getRoomId(roomId));
+            Long ticketId = studyParticipationCommandService.createParticipation(getMemberId(userId), getRoomId(roomId));
+
+            // ✅ ticketId를 포함한 payload 생성
+            ObjectNode ticketPayload = mapper.createObjectNode();
+            ticketPayload.put("ticketId", ticketId);
+
+            // ✅ 클라이언트에게 ticketId 전송
+            sendEventToUser(userId, MessageType.TICKET_CREATED, roomId, ticketPayload, "server");
+
         } catch (Exception e) {
             log.warn("[Signaling] Failed to create participation: userId={}, roomId={}", userId, roomId);
         }
