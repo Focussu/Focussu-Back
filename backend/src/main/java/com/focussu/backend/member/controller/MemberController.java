@@ -1,5 +1,6 @@
 package com.focussu.backend.member.controller;
 
+import com.focussu.backend.auth.util.AuthUtil;
 import com.focussu.backend.common.dto.ErrorResponse;
 import com.focussu.backend.member.dto.MemberCreateRequest;
 import com.focussu.backend.member.dto.MemberCreateResponse;
@@ -26,6 +27,7 @@ public class MemberController {
 
     private final MemberCommandService commandService;
     private final MemberQueryService queryService;
+    private final AuthUtil authUtil;
 
     @Operation(summary = "회원가입", description = "신규 회원을 등록합니다.")
     @ApiResponses({
@@ -135,4 +137,22 @@ public class MemberController {
         commandService.deleteMember(memberId);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "내 정보 조회", description = "내 토큰으로 내 정보를 조회합니다.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = MemberCreateResponse.class)
+                    )
+            )
+    })
+    @GetMapping("/my")
+    public ResponseEntity<MemberCreateResponse> getMyInformation() {
+        Long currentMemberId = authUtil.getCurrentMemberId();
+        return ResponseEntity.ok(queryService.getMember(currentMemberId));
+    }
+
 }
