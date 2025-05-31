@@ -104,7 +104,6 @@ public class SecurityConfig {
                         .requestMatchers(WhiteList.AUTH.getPatterns()).permitAll()
                         .requestMatchers(WhiteList.CHECKER.getPatterns()).permitAll()
                         .requestMatchers("/ws/signaling").permitAll()
-                        .requestMatchers("/ai-analysis").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(authExceptionFilter, UsernamePasswordAuthenticationFilter.class) // 예외 처리

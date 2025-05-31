@@ -9,7 +9,8 @@ import java.util.Arrays;
 public enum WhiteList {
     DOCS("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/docs"),
     CHECKER("/test/health-check"),
-    AUTH("/api/members/join", "/auth/login/**");
+    AUTH("/api/members/join", "/auth/login/**"),
+    AI_ANALYSIS("/ai-analysis");
 
     private final String[] patterns;
     private static final AntPathMatcher pathMatcher = new AntPathMatcher();
