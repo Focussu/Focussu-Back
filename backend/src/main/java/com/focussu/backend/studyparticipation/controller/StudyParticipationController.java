@@ -1,6 +1,7 @@
 package com.focussu.backend.studyparticipation.controller;
 
 import com.focussu.backend.auth.util.AuthUtil;
+import com.focussu.backend.member.service.MemberQueryService;
 import com.focussu.backend.studyparticipation.dto.ConcentrationStatsResponse;
 import com.focussu.backend.studyparticipation.dto.StudyParticipationResponse;
 import com.focussu.backend.studyparticipation.service.StudyParticipationQueryService;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.DayOfWeek;
@@ -23,6 +25,7 @@ import java.time.LocalDateTime;
 public class StudyParticipationController {
 
     private final StudyParticipationQueryService queryService;
+    private final MemberQueryService memberQueryService;
     private final AuthUtil authUtil;
 
     @Operation(summary = "오늘 공부 시간", description = "오늘 하루 동안의 공부 시간을 초 단위로 반환합니다.")
@@ -30,6 +33,16 @@ public class StudyParticipationController {
     @GetMapping("/time/today")
     public StudyParticipationResponse getTodayStudySeconds() {
         Long memberId = authUtil.getCurrentMemberId();
+        LocalDateTime start = LocalDate.now().atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+        return queryService.buildStudyTimeResponse(memberId, start, end);
+    }
+
+    @Operation(summary = "특정 사람의 오늘 공부 시간", description = "특정 사람의 오늘 하루 공부 시간을 초 단위로 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @GetMapping("/time/today/other")
+    public StudyParticipationResponse getTodayStudySeconds(@RequestParam String email) {
+        Long memberId = memberQueryService.getMemberIdByEmail(email);
         LocalDateTime start = LocalDate.now().atStartOfDay();
         LocalDateTime end = start.plusDays(1);
         return queryService.buildStudyTimeResponse(memberId, start, end);
