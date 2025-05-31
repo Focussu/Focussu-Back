@@ -28,6 +28,8 @@ public enum WhiteList {
                 || Arrays.stream(WhiteList.AUTH.getPatterns())
                 .anyMatch(pattern -> pathMatcher.match(pattern, uri))
                 || Arrays.stream(WhiteList.CHECKER.getPatterns())
+                .anyMatch(pattern -> pathMatcher.match(pattern, uri))
+                || Arrays.stream(WhiteList.AI_ANALYSIS.getPatterns())
                 .anyMatch(pattern -> pathMatcher.match(pattern, uri));
     }
 }
