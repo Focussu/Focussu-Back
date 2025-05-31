@@ -19,6 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/members")
 @Tag(name = "Member", description = "회원가입, 조회, 탈퇴 관련 API")
@@ -155,4 +157,10 @@ public class MemberController {
         return ResponseEntity.ok(queryService.getMember(currentMemberId));
     }
 
+    @Operation(summary = "이메일로 memberId 조회")
+    @ApiResponse(responseCode = "200", description = "memberId 반환")
+    @GetMapping("/member-id")
+    public ResponseEntity<Map<String, Long>> getMemberIdByEmail(@RequestParam String email) {
+        return ResponseEntity.ok(Map.of("member_id", queryService.getMemberIdByEmail(email)));
+    }
 }

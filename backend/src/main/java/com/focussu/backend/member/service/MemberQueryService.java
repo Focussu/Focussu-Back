@@ -20,4 +20,10 @@ public class MemberQueryService {
                 .orElseThrow(() -> new MemberException(MEMBER_NOT_FOUND));
         return MemberCreateResponse.from(member);
     }
+
+    public Long getMemberIdByEmail(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new MemberException(MEMBER_NOT_FOUND));
+        return member.getId();
+    }
 }

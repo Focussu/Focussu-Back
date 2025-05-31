@@ -2,7 +2,6 @@ package com.focussu.backend.auth.controller;
 
 import com.focussu.backend.auth.dto.AuthenticationRequest;
 import com.focussu.backend.auth.dto.AuthenticationResponse;
-import com.focussu.backend.auth.util.AuthUtil;
 import com.focussu.backend.common.dto.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,18 +12,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
 @AllArgsConstructor
 @Tag(name = "Authentication", description = "필터 기반 로그인·로그아웃 명세")
 public class AuthDocumentController {
-
-    private final AuthUtil authUtil;
 
     @Operation(
             summary = "로그인",
@@ -134,16 +131,5 @@ public class AuthDocumentController {
     @PostMapping("/logout")
     public void logout() {
         // 구현 없음 — 문서화 전용
-    }
-
-    @Operation(summary = "JWT 토큰으로 현재 로그인된 유저의 memberId 조회")
-    @ApiResponse(responseCode = "200", description = "memberId 반환")
-    @GetMapping("/member-id")
-    public ResponseEntity<Map<String, Long>> getMemberId() {
-        Long currentMemberId = authUtil.getCurrentMemberId();
-
-        return ResponseEntity.ok(
-                Map.of("member_id", currentMemberId)
-        );
     }
 }
