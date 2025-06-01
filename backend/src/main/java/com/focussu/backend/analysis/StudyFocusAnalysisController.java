@@ -2,6 +2,7 @@ package com.focussu.backend.analysis;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+@Tag(name = "Study Focus Analysis", description = "집중도 분석 수신 및 시간대별 변화 조회")
 @RestController
 @RequiredArgsConstructor
 public class StudyFocusAnalysisController {
