@@ -2,10 +2,10 @@ package com.focussu.backend.studyparticipation.service;
 
 import com.focussu.backend.member.model.Member;
 import com.focussu.backend.member.repository.MemberRepository;
-import com.focussu.backend.studyroom.model.StudyRoom;
-import com.focussu.backend.studyroom.repository.StudyRoomRepository;
 import com.focussu.backend.studyparticipation.model.StudyParticipation;
 import com.focussu.backend.studyparticipation.repository.StudyParticipationRepository;
+import com.focussu.backend.studyroom.model.StudyRoom;
+import com.focussu.backend.studyroom.repository.StudyRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

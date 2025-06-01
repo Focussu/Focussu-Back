@@ -1,7 +1,9 @@
 // StudyParticipationRepository.java
 package com.focussu.backend.studyparticipation.repository;
 
+import com.focussu.backend.studyparticipation.dto.StudyParticipationByDateProjection;
 import com.focussu.backend.studyparticipation.model.StudyParticipation;
+import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -35,4 +37,19 @@ public interface StudyParticipationRepository extends JpaRepository<StudyPartici
 
     @Query(value = "SELECT MAX(sp.study_participation_end_time) FROM study_participation sp WHERE sp.member_id = :memberId", nativeQuery = true)
     Optional<LocalDateTime> findLatestEndTimeByMemberId(Long memberId);
-} 
+
+    @Query(
+            value = """
+        SELECT 
+            DATE(study_participation_start_time) AS date,
+            SUM(TIMESTAMPDIFF(SECOND, study_participation_start_time, IFNULL(study_participation_end_time, NOW()))) AS time
+        FROM study_participation
+        WHERE member_id = :memberId
+        GROUP BY DATE(study_participation_start_time)
+        ORDER BY DATE(study_participation_start_time) DESC
+    """,
+            nativeQuery = true
+    )
+    List<StudyParticipationByDateProjection> findParticipationTimeGroupedByDate(@Param("memberId") Long memberId);
+
+}

@@ -3,12 +3,14 @@ package com.focussu.backend.studyparticipation.controller;
 import com.focussu.backend.auth.util.AuthUtil;
 import com.focussu.backend.member.service.MemberQueryService;
 import com.focussu.backend.studyparticipation.dto.ConcentrationStatsResponse;
+import com.focussu.backend.studyparticipation.dto.StudyParticipationByDateResponse;
 import com.focussu.backend.studyparticipation.dto.StudyParticipationResponse;
 import com.focussu.backend.studyparticipation.service.StudyParticipationQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Tag(name = "Study Participation", description = "공부 시간 및 집중도 통계 API")
 @RestController
@@ -129,4 +132,20 @@ public class StudyParticipationController {
         Long memberId = authUtil.getCurrentMemberId();
         return queryService.buildInactiveSecondsResponse(memberId);
     }
+
+    @Operation(summary = "일자별 공부 시간", description = "현재 로그인한 사용자의 일자별 공부 시간을 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @GetMapping("/time/daily")
+    public ResponseEntity<List<StudyParticipationByDateResponse>> getStudyTimeDaily() {
+        Long memberId = authUtil.getCurrentMemberId();
+
+        List<StudyParticipationByDateResponse> response = queryService
+                .getParticipationTimeByDate(memberId)
+                .stream()
+                .map(p -> new StudyParticipationByDateResponse(p.getDate(), p.getTime()))
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
 }

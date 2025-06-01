@@ -1,6 +1,8 @@
 package com.focussu.backend.studyparticipation.service;
 
+import com.focussu.backend.auth.util.AuthUtil;
 import com.focussu.backend.studyparticipation.dto.ConcentrationStatsResponse;
+import com.focussu.backend.studyparticipation.dto.StudyParticipationByDateProjection;
 import com.focussu.backend.studyparticipation.dto.StudyParticipationResponse;
 import com.focussu.backend.studyparticipation.repository.StudyParticipationRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -15,6 +18,7 @@ import java.util.Optional;
 public class StudyParticipationQueryService {
 
     private final StudyParticipationRepository repository;
+    private final StudyParticipationRepository studyParticipationRepository;
 
     public StudyParticipationResponse buildStudyTimeResponse(Long memberId, LocalDateTime start, LocalDateTime end) {
         Long seconds = repository.findTotalStudySecondsBetween(memberId, start, end).orElse(0L);
@@ -51,6 +55,10 @@ public class StudyParticipationQueryService {
         LocalDateTime now = LocalDateTime.now();
         long seconds = lastExitTime.map(exit -> Duration.between(exit, now).getSeconds()).orElse(0L);
         return StudyParticipationResponse.ofTotal(memberId, seconds);
+    }
+
+    public List<StudyParticipationByDateProjection> getParticipationTimeByDate(Long memberId) {
+        return studyParticipationRepository.findParticipationTimeGroupedByDate(memberId);
     }
 
 }
