@@ -11,4 +11,15 @@ public interface StudyFocusAnalysisRepository extends JpaRepository<StudyFocusAn
     Double calculateAverageScoreByTicketId(@Param("ticketId") Long ticketId);
 
     List<StudyFocusAnalysis> getStudyFocusAnalysisByTicketNumber(Long ticketNumber);
+
+    @Query("""
+        SELECT sfa
+        FROM StudyFocusAnalysis sfa
+        WHERE sfa.ticketNumber IN (
+            SELECT sp.id
+            FROM StudyParticipation sp
+            WHERE sp.member.id = :memberId
+        )
+    """)
+    List<StudyFocusAnalysis> findAllByMemberId(@Param("memberId") Long memberId);
 }

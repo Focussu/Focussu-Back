@@ -31,4 +31,12 @@ public class StudyFocusAnalysisController {
     public ResponseEntity<List<StudyFocusAnalysisResponse>> getFocusAnalysis(@PathVariable Long ticket_id) {
         return ResponseEntity.of(Optional.ofNullable(studyFocusAnalysisQueryService.getFocusAnalysis(ticket_id)));
     }
+
+    @Operation(summary = "내 로그 조회", description = "현재 접속 멤버의 로그를 모두 조회합니다.")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @GetMapping("/ai-analysis/my")
+    public ResponseEntity<List<StudyFocusAnalysisResponse>> getMyFocusAnalysis() {
+        List<StudyFocusAnalysisResponse> result = studyFocusAnalysisQueryService.getMyAnalysisLogs();
+        return ResponseEntity.ok(result);
+    }
 }
