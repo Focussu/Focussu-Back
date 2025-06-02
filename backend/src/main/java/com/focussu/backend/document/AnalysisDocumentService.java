@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AnalysisDocumentService {
@@ -23,10 +25,12 @@ public class AnalysisDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public AnalysisDocumentResponse getByTicketNumber(Long ticketNumber) {
-        AnalysisDocument doc = repository.findByTicketNumber(ticketNumber)
-                .orElseThrow(() -> new IllegalArgumentException("해당 티켓 번호의 문서를 찾을 수 없습니다."));
+    public List<AnalysisDocumentResponse> getByTicketNumbers(List<Long> ticketNumbers) {
+        List<AnalysisDocument> docs = repository.findAllByTicketNumberIn(ticketNumbers);
 
-        return new AnalysisDocumentResponse(doc.getId(), doc.getTicketNumber(), doc.getContent());
+        return docs.stream()
+                .map(doc -> new AnalysisDocumentResponse(doc.getId(), doc.getTicketNumber(), doc.getContent()))
+                .toList();
     }
+
 }

@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/analysis-document")
@@ -19,10 +21,11 @@ public class AnalysisDocumentController {
         return service.create(request);
     }
 
-    @Operation(summary = "보고서 조회", description = "티켓 번호로 보고서를 조회합니다.")
+    @Operation(summary = "보고서 조회", description = "여러 티켓 번호로 보고서를 조회합니다.")
     @ApiResponse(responseCode = "200", description = "성공")
-    @GetMapping("/{ticketNumber}")
-    public AnalysisDocumentResponse get(@PathVariable Long ticketNumber) {
-        return service.getByTicketNumber(ticketNumber);
+    @GetMapping
+    public List<AnalysisDocumentResponse> getByTicketNumbers(@RequestParam List<Long> ticketNumbers) {
+        return service.getByTicketNumbers(ticketNumbers);
     }
+
 }
