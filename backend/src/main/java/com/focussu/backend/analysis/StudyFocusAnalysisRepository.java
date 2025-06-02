@@ -22,4 +22,6 @@ public interface StudyFocusAnalysisRepository extends JpaRepository<StudyFocusAn
         )
     """)
     List<StudyFocusAnalysis> findAllByMemberId(@Param("memberId") Long memberId);
+
+    List<StudyFocusAnalysis> findByTicketNumber(Long ticketNumber);
 }

@@ -41,4 +41,13 @@ public class StudyFocusAnalysisController {
         List<StudyFocusAnalysisResponse> result = studyFocusAnalysisQueryService.getMyAnalysisLogs();
         return ResponseEntity.ok(result);
     }
+
+    @Operation(summary = "집중도 0.5 이상인 시간 합계 조회", description = "특정 티켓에서 집중도가 0.5 이상인 시간의 총합(초)을 반환합니다.")
+    @ApiResponse(responseCode = "200", description = "성공")
+    @GetMapping("/ai-analysis/{ticket_id}/high-focus-duration")
+    public ResponseEntity<Long> getHighFocusDuration(@PathVariable("ticket_id") Long ticketId) {
+        long durationInSeconds = studyFocusAnalysisQueryService.getHighFocusDuration(ticketId);
+        return ResponseEntity.ok(durationInSeconds);
+    }
+
 }
